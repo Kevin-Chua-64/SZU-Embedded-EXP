@@ -1,0 +1,58 @@
+C51 COMPILER V9.02   BUTTON                                                                12/16/2022 23:19:34 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE BUTTON
+OBJECT MODULE PLACED IN ..\Obj\button.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\Api\button.c BROWSE INCDIR(..\Api;..\Public;..\User) DEBUG OBJECTEXTEND 
+                    -PRINT(..\Obj\button.lst) OBJECT(..\Obj\button.obj)
+
+line level    source
+
+   1          #include "button.h"
+   2          
+   3          /*******************************
+   4          º¯ÊýÃû£ºbutton_scan
+   5          º¯Êý¹¦ÄÜ£º¶ÀÁ¢°´¼üµÄÉ¨Ãè
+   6          º¯ÊýÐÎ²Î£ºvoid
+   7          º¯Êý·µ»ØÖµ£ºu8 
+   8          ±¸×¢£º·µ»ØÖµÎª1£¬2£¬3£¬4£¬Ã»ÓÐ½á¹ûÔò·µ»Ø0xff
+   9          *******************************/
+  10          unsigned char button_scan()
+  11          {
+  12   1              static xdata unsigned char key_flag=0x00;  // µ¹ÊýµÚ¼¸Î»Îª0±íÊ¾µÚ¼¸¸ö°´¼üÃ»°´ÏÂ
+  13   1              static xdata unsigned char buff[4]={0xff,0xff,0xff,0xff};  // Ïû¶¶£¬Á¬Ðø²ÉÑù8´Î£¬8´Î²ÉÑùÖµ¾ùÏàÍ¬²ÅÊÓÎªÎÈ¶
+             -¨
+  14   1              unsigned char i;
+  15   1      
+  16   1              delay_ms(1);  // Ã¿1ms¼ì²âÒ»´Î
+  17   1              buff[0] = (buff[0]<<1) | button1;
+  18   1              buff[1] = (buff[1]<<1) | button2;
+  19   1              buff[2] = (buff[2]<<1) | button3;
+  20   1              buff[3] = (buff[3]<<1) | button4;               
+  21   1      
+  22   1              for (i=0;i<4;i++)  //Ñ­»·¼ì²âËÄ¸ö°´¼ü
+  23   1              {
+  24   2                      if ( ((key_flag>>i)&0x01)==0x00 && buff[i]==0x00 )
+  25   2                      {
+  26   3                              key_flag |= 0x01<<i;  // ÖÃ1£¬±íÊ¾°´¼ü°´ÏÂ
+  27   3                              return (i+1);
+  28   3                      }
+  29   2                      else if (buff[i]==0xff) key_flag &= ~(0x01<<i);  // ÖÃ0£¬±íÊ¾°´¼üËÉ¿ª
+  30   2              }
+  31   1              
+  32   1              return 0xff;  // ±íÊ¾°´¼üËÉ¿ª»òÕß´¦ÓÚ²»ÎÈ¶¨×´Ì¬
+  33   1      } 
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    151    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      5    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

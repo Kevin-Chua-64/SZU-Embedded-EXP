@@ -1,0 +1,20 @@
+"..\Obj\led_running.obj",
+"..\Obj\button.obj",
+"..\Obj\matrix_key.obj",
+"..\Obj\display.obj",
+"..\Obj\lcd1602.obj",
+"..\Obj\pwm.obj",
+"..\Obj\dc_motor.obj",
+"..\Obj\step_motor.obj",
+"..\Obj\DS18B20.obj",
+"..\Obj\infrared.obj",
+"..\Obj\wifi.obj",
+"..\Obj\delay.obj",
+"..\Obj\timer.obj",
+"..\Obj\global.obj",
+"..\Obj\uart.obj",
+"..\Obj\function.obj",
+"..\Obj\main.obj" 
+TO "..\Obj\kit" 
+PRINT("..\Obj\kit.m51") RAMSIZE(256) 
+DISABLEWARNING (16) 

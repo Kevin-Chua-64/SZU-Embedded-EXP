@@ -1,0 +1,32 @@
+C51 COMPILER V9.02   PUBLIC                                                                11/15/2022 22:11:26 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE PUBLIC
+OBJECT MODULE PLACED IN .\Obj\public.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE Public\public.c BROWSE INCDIR(.\App\lcd1602;.\Public) DEBUG OBJECTEXTEND PR
+                    -INT(.\Obj\public.lst) OBJECT(.\Obj\public.obj)
+
+line level    source
+
+   1          #include "public.h"
+   2          
+   3          void delay_ms(unsigned char z)
+   4          {
+   5   1              unsigned char i,j;
+   6   1              for (i=0;i<z;i++)
+   7   1                      for(j=0;j<127;j++);
+   8   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     17    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

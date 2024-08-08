@@ -1,0 +1,114 @@
+C51 COMPILER V9.02   MATRIX_KEY                                                            11/07/2022 10:30:46 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE MATRIX_KEY
+OBJECT MODULE PLACED IN matrix_key.OBJ
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE matrix_key.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          // 没有按键按下：key=0xff，第i个按键按下，key=i                   
+   2          #include <reg51.h>
+   3          unsigned char code led_num[16] = {0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x6f, 0x77, 0x7c, 
+             -0x39, 0x5e, 0x79, 0x71};
+   4          
+   5          sbit k1 = P1^3;
+   6          sbit k2 = P1^2;
+   7          sbit k3 = P1^1;
+   8          sbit k4 = P1^0;
+   9          
+  10          bit flag = 0;
+  11          
+  12          void timer0_config()  //11.0592MHz
+  13          {
+  14   1              TMOD &= 0xf0;
+  15   1              TMOD |= 0x01;  // 计数器0工作在模式1
+  16   1              TR0 = 1;  // 计数器0工作
+  17   1              TH0 = 0xf8;   
+  18   1              TL0 = 0xcd;  // 65536-63693=1843, 2ms
+  19   1              EA = 1;
+  20   1              ET0 = 1;  // 打开中断
+  21   1      }
+  22          
+  23          unsigned char key_scan()
+  24          {
+  25   1              static unsigned char j=0;
+  26   1              static unsigned char key_flag[4]={0x00,0x00,0x00,0x00};  // 四行，倒数第几位为0表示第几列按键没按下
+  27   1              static unsigned char buff[4][4]={{0xff,0xff,0xff,0xff},{0xff,0xff,0xff,0xff},{0xff,0xff,0xff,0xff},{0xff,
+             -0xff,0xff,0xff}};  // 消抖，连续采样8次，8次采样值均相同才视为稳定
+  28   1              unsigned char i;
+  29   1      
+  30   1              switch(j)  // 换行扫描，对应行输入置0，低电平
+  31   1              {
+  32   2                      case 0: P1 = 0x7f; break;
+  33   2                      case 1: P1 = 0xbf; break;
+  34   2                      case 2: P1 = 0xdf; break;
+  35   2                      case 3: P1 = 0xef; break;
+  36   2              }
+  37   1      
+  38   1              if (flag == 1)  // 每2ms检测一次
+  39   1              {
+  40   2                      flag = 0;
+  41   2                      buff[j][0] = (buff[j][0]<<1) | k1;
+  42   2                      buff[j][1] = (buff[j][1]<<1) | k2;
+  43   2                      buff[j][2] = (buff[j][2]<<1) | k3;
+  44   2                      buff[j][3] = (buff[j][3]<<1) | k4;              
+  45   2      
+  46   2                      for (i=0;i<4;i++)  //循环检测四个按键
+  47   2                      {
+  48   3                              if ( ((key_flag[j]>>i)&0x01)==0x00 && buff[j][i]==0x00 )
+  49   3                              {
+  50   4                                      key_flag[j] |= 0x01<<i;  // 置1，表示按键按下
+  51   4                                      return (4*j+i + 1);
+  52   4                              }
+  53   3                              else if (buff[j][i]==0xff) key_flag[j] &= ~(0x01<<i);  // 置0，表示按键松开
+C51 COMPILER V9.02   MATRIX_KEY                                                            11/07/2022 10:30:46 PAGE 2   
+
+  54   3                      }
+  55   2              }
+  56   1      
+  57   1              j++;
+  58   1              if (j==4) j = 0;
+  59   1      
+  60   1              return 0xff;  // 表示按键松开或者处于不稳定状态
+  61   1      } 
+  62          
+  63          void key_action(unsigned char key)
+  64          {
+  65   1              if (key != 0xff)
+  66   1                      P0 = led_num[key-1];                                                    
+  67   1              // key==0xff，无按键按下或者按键尚未平稳，无操作
+  68   1      }
+  69          
+  70          void main()
+  71          {
+  72   1              unsigned char key=0;
+  73   1      
+  74   1              timer0_config();
+  75   1              while(1)
+  76   1              {
+  77   2                      key = key_scan();
+  78   2                      key_action(key);
+  79   2              }
+  80   1      }
+  81          
+  82          void timer0_2ms() interrupt 1
+  83          {
+  84   1              TH0 = 0xf8;   
+  85   1              TL0 = 0xcd;  // 65536-63693=1843, 2ms
+  86   1              flag = 1;
+  87   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    338    ----
+   CONSTANT SIZE    =     16    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     21    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

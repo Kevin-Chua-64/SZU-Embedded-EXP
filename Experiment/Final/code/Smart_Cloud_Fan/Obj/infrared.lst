@@ -1,0 +1,168 @@
+C51 COMPILER V9.02   INFRARED                                                              12/19/2022 09:56:57 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE INFRARED
+OBJECT MODULE PLACED IN ..\Obj\infrared.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\Api\infrared.c BROWSE INCDIR(..\Api;..\Public;..\User) DEBUG OBJECTEXTEN
+                    -D PRINT(..\Obj\infrared.lst) OBJECT(..\Obj\infrared.obj)
+
+line level    source
+
+   1          #include "infrared.h"
+   2          
+   3          void ired_init()
+   4          {
+   5   1              IT0=1;  //下降沿触发
+   6   1              EX0=1;  //打开中断0允许
+   7   1              EA=1;   //打开总中断
+   8   1              IRED=1; //初始化端口
+   9   1      }
+  10          
+  11          /*******************************
+  12          the external interrupt
+  13          decode the NEC data and action
+  14          key value:
+  15          开关：45H      Mode：46H      静音：47H
+  16          播放暂停：44H  快退：40H      快进：43H
+  17          EQ：07H        VOL-：15H      VOL+：09H
+  18          0：16H         RPT：19H       U/SD：0dH
+  19          1：0cH         2：18H             3：5eH
+  20          4：08H         5：1cH             6：5aH
+  21          7：42H             8：52H                 9：4aH
+  22          *******************************/
+  23          bit flag_infrared_1s=0;
+  24          void ired() interrupt 0
+  25          {
+  26   1              unsigned char gired_data[4];  //存储4个字节接收码（地址码+地址反码+控制码+控制反码）
+  27   1              unsigned char ired_key;       //存储解码后的键值 
+  28   1              unsigned char ired_high_time=0;
+  29   1              unsigned int time_cnt=0;
+  30   1              unsigned char i=0,j=0;   
+  31   1              static unsigned char pre_key;
+  32   1      
+  33   1              if(IRED==0)
+  34   1              {               
+  35   2                      time_cnt=1000;
+  36   2                      while((!IRED)&&(time_cnt))//等待引导信号9ms低电平结束，若超过10ms强制退出
+  37   2                      {
+  38   3                              delay_10us(1);//延时约10us
+  39   3                              time_cnt--;
+  40   3                              if(time_cnt==0)return;          
+  41   3                      }
+  42   2                      if(IRED)//引导信号9ms低电平已过，进入4.5ms高电平
+  43   2                      {
+  44   3                              time_cnt=500;
+  45   3                              while(IRED&&time_cnt)//等待引导信号4.5ms高电平结束，若超过5ms强制退出
+  46   3                              {
+  47   4                                      delay_10us(1);
+  48   4                                      time_cnt--;
+  49   4                                      if(time_cnt==0)return;  
+  50   4                              }
+  51   3                              for(i=0;i<4;i++)//循环4次，读取4个字节数据
+  52   3                              {
+  53   4                                      for(j=0;j<8;j++)//循环8次读取每位数据即一个字节
+  54   4                                      {
+C51 COMPILER V9.02   INFRARED                                                              12/19/2022 09:56:57 PAGE 2   
+
+  55   5                                              time_cnt=600;
+  56   5                                              while((IRED==0)&&time_cnt)//等待数据1或0前面的0.56ms结束，若超过6ms强制退出
+  57   5                                              {
+  58   6                                                      delay_10us(1);
+  59   6                                                      time_cnt--;
+  60   6                                                      if(time_cnt==0)return;  
+  61   6                                              }
+  62   5                                              time_cnt=20;
+  63   5                                              while(IRED)//等待数据1或0后面的高电平结束，若超过2ms强制退出
+  64   5                                              {
+  65   6                                                      delay_10us(10);//约0.1ms
+  66   6                                                      ired_high_time++;
+  67   6                                                      if(ired_high_time>20)return;    
+  68   6                                              }
+  69   5                                              gired_data[i]>>=1;//先读取的为低位，然后是高位
+  70   5                                              if(ired_high_time>=8)//如果高电平时间大于0.8ms，数据则为1，否则为0
+  71   5                                                      gired_data[i]|=0x80;
+  72   5                                              ired_high_time=0;//重新清零，等待下一次计算时间
+  73   5                                      }
+  74   4                              }
+  75   3                      }
+  76   2                      if(gired_data[2]!=~gired_data[3])//校验控制码与反码，错误则返回
+  77   2                      {
+  78   3                              for(i=0;i<4;i++)
+  79   3                                      gired_data[i]=0;
+  80   3                              return; 
+  81   3                      }
+  82   2              }
+  83   1      
+  84   1              // 解码
+  85   1              ired_key = gired_data[2]/16;  //控制码高4位
+  86   1              ired_key <<= 4;
+  87   1              ired_key |= gired_data[2]%16;  //控制码低4位
+  88   1      
+  89   1              // 以下进行红外解码后的操作     
+  90   1              //1：0cH         2：18H           3：5eH
+  91   1              //4：08H         5：1cH           6：5aH
+  92   1              if (flag_infrared_1s == 1)
+  93   1              {
+  94   2                      flag_infrared_1s = 0;
+  95   2                      if (ired_key==0x0c)      // 模式：关、标准、睡眠风、温控
+  96   2                      {
+  97   3                              fan_mode = (fan_mode+1)%4;      
+  98   3                              if (fan_mode==0)  // 关机时复位
+  99   3                              {
+ 100   4                                      rotate_speed = 0;  // 不摇头
+ 101   4                                      fan_speed = 1;  // 速度为1档
+ 102   4                                      timer_mode = 0;  // 定时关闭功能关
+ 103   4                                      timer_min = 0;
+ 104   4                                      timer_sec = 0;  // 定时清空
+ 105   4                              } else if (fan_mode==3)  // 温控开始时记录当时温度和占空比
+ 106   3                              {
+ 107   4                                      start_temp = temp;
+ 108   4                                      start_duty = g_pwm_duty;        
+ 109   4                              }       
+ 110   3                      } else if (ired_key==0x18 && fan_mode!=0)       // 左右摇头
+ 111   2                              rotate_speed = (rotate_speed+1)%3;      
+ 112   2                      else if (ired_key==0x5e && fan_mode==1)  // 风速
+ 113   2                              fan_speed = (fan_speed%3)+1;    
+ 114   2                      else if (ired_key==0x08 && fan_mode!=0)  // 定时器倒计时关机
+ 115   2                      {
+ 116   3                              timer_mode = (timer_mode+1)%4;
+C51 COMPILER V9.02   INFRARED                                                              12/19/2022 09:56:57 PAGE 3   
+
+ 117   3                              if (timer_mode==0)      // 关闭定时
+ 118   3                              {
+ 119   4                                      timer_min = 0;
+ 120   4                                      timer_sec = 0;  // 定时清空     
+ 121   4                              }
+ 122   3                      }       
+ 123   2                      else if (ired_key==0x1c && pre_key!=0x1c && fan_mode!=0)  // 定时器设置时间，单击
+ 124   2                      {
+ 125   3                              if (timer_mode==1)
+ 126   3                                      timer_sec = (timer_sec+1)%60;
+ 127   3                              else if (timer_mode==2)
+ 128   3                                      timer_min = (timer_min+1)%100;  
+ 129   3                      } else if (ired_key==0x1c && pre_key==0x1c && fan_mode!=0)  // 定时器设置时间，长按
+ 130   2                      {
+ 131   3                              if (timer_mode==1)
+ 132   3                                      timer_sec = (timer_sec+5)%60;
+ 133   3                              else if (timer_mode==2)
+ 134   3                                      timer_min = (timer_min+1)%100;  
+ 135   3                      } else if (ired_key==0x5a)      // 切换显示温度或风扇状态
+ 136   2                              dis_temp_state = ~dis_temp_state;
+ 137   2                              
+ 138   2                      pre_key = ired_key;     
+ 139   2              }
+ 140   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    556    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      1       9
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

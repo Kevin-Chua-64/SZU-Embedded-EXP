@@ -1,0 +1,511 @@
+C51 COMPILER V9.02   E_WATCH                                                               11/01/2022 12:45:05 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE E_WATCH
+OBJECT MODULE PLACED IN e_watch.OBJ
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE e_watch.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          // µç×Ó±í
+   2          // ¹¦ÄÜ£ºÊ±¼äµ÷Õû£»ÉèÖÃÄÖÁå£»µ¹¼ÆÊ±¶¨Ê±Æ÷£»Ãë±í¡£
+   3          // Ê±ÖÓ¡¢ÄÖÁå¡¢µ¹¼ÆÊ±¡¢Ãë±í¹¦ÄÜÊıÖµ¶À×Ô´¢´æ£¬±Ë´Ë¶ÀÁ¢£¬»¥²»¸ÉÈÅ£¬¿ÉÍ¬Ê±½øĞĞ¡£
+   4          // Ê¹ÓÃËÄ¸ö¶ÀÁ¢°´¼ü£ºK1£¬K2£¬K3£¬K4¡£ÆäÖĞK1Îª¹¦ÄÜÇĞ»»¼ü
+   5          
+   6          // Ã¿°´ÏÂÒ»´ÎK1£¬Ñ­»·ÇĞ»»¹¦ÄÜ
+   7          // ³õÊ¼Çé¿ö£ºÊ±ÖÓ£¬LED D1£¬D2£¬D7£¬D8Ï¨Ãğ
+   8          // Ê±¼äµ÷Õû£ºLED D1ÁÁÆğ£¬Ê±ÖÓÔİÍ££¬µ÷ÕûÊ±¼ä£¬K2£ºÇĞ»»µ÷ÕûµÄÊ±·ÖÃë£»K3£º¼Ó£»K4£º¼õ
+   9          // ÄÖÁå£ºLED D2ÁÁÆğ£¬ÉèÖÃÊ±·ÖÃë£¬µ½Ê±¼äÊ±ÏìÁå3Ãë£¬D1,D2ÁÁÆğ´ú±íÄÖÁå¿ªÆô£¬³õÊ¼Îª¹Ø±Õ£¬K2£ºÇĞ»»µ÷ÕûµÄÊ±·ÖÃë£
+             -»K3£º¼Ó£»K4£º¿ªÆô/¹Ø±ÕÄÖÁå
+  10          // ¶¨Ê±Æ÷£ºLED D7ÁÁÆğ£¬ÉèÖÃĞèÒªµ¹¼ÆÊ±µÄ·Ö¡¢Ãë¡¢ºÁÃë£¬µ½Ê±¼äÏìÁå1Ãë£¬D7,D8ÁÁÆğ´ú±íµ¹¼ÆÊ±¿ªÆô£¬³õÊ¼Îª¹Ø±Õ£¬K
+             -2£ºÇĞ»»µ÷ÕûµÄµ¥Î»£»K3£º¼Ó£»K4£º¿ªÊ¼/ÔİÍ£µ¹¼ÆÊ±
+  11          // Ãë±í£ºLED D8ÁÁÆğ£¬¼ÆÂú100·ÖÖÓºóÇåÁãÑ­»·£¬K2£º¿ªÊ¼£»K3£º½áÊø£»K4£ºÇåÁã
+  12          
+  13          // ÊıÂë¹ÜÏÔÊ¾Îªµ±Ç°µÄ¹¦ÄÜµÄÖµ£¬²Î¿¼¹¦ÄÜÖ¸Ê¾µÆD1,D2,D7,D8µÄÖ¸Ê¾
+  14          // µ±´¦ÔÚ¿Éµ÷ÕûÊıÖµµÄ¹¦ÄÜÊ±£¬µ÷ÕûµÄ¶ÔÓ¦Î»ÖÃÊıÖµÉÁË¸
+  15          
+  16          #include <reg51.h>      
+  17          
+  18          unsigned char code led_num[11] = {0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x6f, 0x40};    // 11
+             -¸öÄ£Öµ£º0~9, -
+  19          unsigned char hour=0, min=0, sec=0;      // Ê±ÖÓ
+  20          unsigned char alarm_h=0, alarm_m=0, alarm_s=0;  // ÄÖÁå
+  21          unsigned char timer_m=0, timer_s=0, timer_ms=0;  //     ¶¨Ê±Æ÷
+  22          unsigned char stopwatch_m=0, stopwatch_s=0, stopwatch_ms=0;  // Ãë±í
+  23          
+  24          sbit LSA=P2^2;
+  25          sbit LSB=P2^3;
+  26          sbit LSC=P2^4;
+  27          sbit BEEP = P2^5;
+  28                                                                                                                                                                  
+  29          sbit k1 = P3^1;
+  30          sbit k2 = P3^0;
+  31          sbit k3 = P3^2;
+  32          sbit k4 = P3^3;
+  33          
+  34          sbit led1 = P2^0;
+  35          sbit led2 = P2^1;
+  36          sbit led3 = P2^6;
+  37          sbit led4 = P2^7;
+  38          
+  39          unsigned char disp_func_flag = 0;  // µ±Ç°¹¦ÄÜ
+  40          bit flag_clock=0, flag_timer=0, flag_stopwatch=0, flag_button=0, flag_beep=0, beep_flip=0, flag_blink=0;  
+             -// ÖĞ¶Ï±êÖ¾
+  41          unsigned char clock_sw = 0; alarm_sw = 0; timer_sw = 0;  // µ÷ÕûµÄ²»Í¬µÄÎ» 
+  42          bit alarm_beep=0, alarm_en=0, timer_beep=0, timer_en=0, stopwatch_en=0;  // ÄÖÖÓÏìÁå±êÖ¾£¬ÄÖÖÓ¿ª¹Ø£¬µ¹¼ÆÊ±
+             -ÏìÁå±êÖ¾£¬µ¹¼ÆÊ±¿ªÆô±êÖ¾£¬Ãë±í¿ª¹Ø
+  43          
+  44          void delay(unsigned char z)      // delay z ms
+  45          {
+  46   1              unsigned char i, j;
+  47   1              for(j=0;j<z;j++)
+  48   1                      for(i=0;i<127;i++);
+  49   1      }
+  50          
+C51 COMPILER V9.02   E_WATCH                                                               11/01/2022 12:45:05 PAGE 2   
+
+  51          void timer0_config()  //11.0592MHz
+  52          {
+  53   1              TMOD &= 0xf0;
+  54   1              TMOD |= 0x01;  // ¼ÆÊıÆ÷0¹¤×÷ÔÚÄ£Ê½1
+  55   1              TR0 = 1;  // ¼ÆÊıÆ÷0¹¤×÷
+  56   1              TH0 = 0xdc;   
+  57   1              TL0 = 0x00;  // 65536-56320=9216, 10ms
+  58   1              EA = 1;
+  59   1              ET0 = 1;  // ´ò¿ªÖĞ¶Ï
+  60   1      }
+  61          
+  62          void timer1_config()  //11.0592MHz
+  63          {
+  64   1              TMOD &= 0x0f;
+  65   1              TMOD |= 0x10;  // ¼ÆÊıÆ÷1¹¤×÷ÔÚÄ£Ê½1
+  66   1              TR1 = 1;  // ¼ÆÊıÆ÷1¹¤×÷
+  67   1              TH1 = 0xf8;   
+  68   1              TL1 = 0xcd;  // 65536-63693=1843, 2ms
+  69   1              EA = 1;
+  70   1              ET1 = 1;  // ´ò¿ªÖĞ¶Ï
+  71   1      }
+  72          
+  73          void buzzer()  // ÏìÁå
+  74          {
+  75   1              static unsigned char cnt=0;      // ¼ÆÊ±ÓÃ
+  76   1      
+  77   1              if (alarm_beep==1 || timer_beep==1)  // ÏìÁå±êÖ¾
+  78   1              {
+  79   2                      if (beep_flip==1)  // 2msÖĞ¶Ï±êÖ¾ 
+  80   2                      {
+  81   3                              beep_flip = 0;
+  82   3                              BEEP = ~BEEP;
+  83   3                      }                                       
+  84   2                      if (flag_beep==1)  // ÏìÁåÊ±³¤±êÖ¾
+  85   2                      {
+  86   3                              flag_beep = 0;
+  87   3                              cnt++;
+  88   3                              if (cnt==3+1)
+  89   3                              {
+  90   4                                      cnt = 0;
+  91   4                                      alarm_beep = 0;  // 3Ãëµ½£¬ÄÖÁåÍ£Ö¹
+  92   4                                      BEEP = 1;       
+  93   4                              }
+  94   3                              if (cnt==1+1)
+  95   3                              {
+  96   4                                      cnt = 0;
+  97   4                                      timer_beep = 0;  // 1Ãëµ½£¬µ¹¼ÆÊ±ÏìÁåÍ£Ö¹
+  98   4                                      BEEP = 1;       
+  99   4                              }
+ 100   3                      }
+ 101   2              }
+ 102   1      }
+ 103          
+ 104          unsigned char key_scan()  // É¨Ãè°´¼ü
+ 105          {
+ 106   1              static unsigned char key_flag=0x00;  // µ¹ÊıµÚ¼¸Î»Îª0±íÊ¾µÚ¼¸¸ö°´¼üÃ»°´ÏÂ
+ 107   1              static unsigned char buff[4]={0xff,0xff,0xff,0xff};  // Ïû¶¶£¬Á¬Ğø²ÉÑù8´Î£¬8´Î²ÉÑùÖµ¾ùÏàÍ¬²ÅÊÓÎªÎÈ¶¨
+ 108   1              unsigned char i;
+ 109   1      
+ 110   1              if (flag_button == 1)  // Ã¿2ms¼ì²âÒ»´Î
+ 111   1              {
+ 112   2                      flag_button = 0;
+C51 COMPILER V9.02   E_WATCH                                                               11/01/2022 12:45:05 PAGE 3   
+
+ 113   2                      buff[0] = (buff[0]<<1) | k1;
+ 114   2                      buff[1] = (buff[1]<<1) | k2;
+ 115   2                      buff[2] = (buff[2]<<1) | k3;
+ 116   2                      buff[3] = (buff[3]<<1) | k4;            
+ 117   2      
+ 118   2                      for (i=0;i<4;i++)  //Ñ­»·¼ì²âËÄ¸ö°´¼ü
+ 119   2                      {
+ 120   3                              if ( ((key_flag>>i)&0x01)==0x00 && buff[i]==0x00 )
+ 121   3                              {
+ 122   4                                      key_flag |= 0x01<<i;  // ÖÃ1£¬±íÊ¾°´¼ü°´ÏÂ
+ 123   4                                      return (i+1);
+ 124   4                              }
+ 125   3                              else if (buff[i]==0xff) key_flag &= ~(0x01<<i);  // ÖÃ0£¬±íÊ¾°´¼üËÉ¿ª
+ 126   3                      }
+ 127   2              }
+ 128   1              return 0xff;  // ±íÊ¾°´¼üËÉ¿ª»òÕß´¦ÓÚ²»ÎÈ¶¨×´Ì¬
+ 129   1      } 
+ 130          
+ 131          void func_change(unsigned char key)  // °´ÏÂ°´¼üK1ºó
+ 132          {
+ 133   1              if (key == 1) 
+ 134   1              {
+ 135   2                      disp_func_flag++;
+ 136   2                      if (disp_func_flag==5) disp_func_flag = 0;
+ 137   2      
+ 138   2                      if (disp_func_flag==0){  // ¸Ä±äÏÔÊ¾¹¦ÄÜµÄLEDµÆ 
+ 139   3                              led1 = 1; led2 = 1; led3 = 1; led4 = 1;
+ 140   3                      }else if (disp_func_flag==1){
+ 141   3                              led1 = 0; led2 = 1; led3 = 1; led4 = 1;
+ 142   3                      }else if (disp_func_flag==2){
+ 143   3                              led1 = 1; led2 = 0; led3 = 1; led4 = 1;
+ 144   3                      }else if (disp_func_flag==3){
+ 145   3                              led1 = 1; led2 = 1; led3 = 0; led4 = 1;
+ 146   3                      }else if (disp_func_flag==4){
+ 147   3                              led1 = 1; led2 = 1; led3 = 1; led4 = 0;
+ 148   3                      }
+ 149   2              }  // key==0xff£¬ÎŞ°´¼ü°´ÏÂ»òÕß°´¼üÉĞÎ´Æ½ÎÈ£¬ÎŞ²Ù×÷
+ 150   1      }
+ 151          
+ 152          void clock()  // Ê±ÖÓ¼ÆÊı
+ 153          {
+ 154   1              if (disp_func_flag != 1)
+ 155   1              {
+ 156   2                      if (flag_clock==1)
+ 157   2                      {
+ 158   3                              flag_clock = 0;
+ 159   3                              sec++;
+ 160   3                              if (sec==60)
+ 161   3                              {
+ 162   4                                      sec = 0;
+ 163   4                                      min++;
+ 164   4                                      if (min==60)
+ 165   4                                      {
+ 166   5                                              min = 0;
+ 167   5                                              hour++;
+ 168   5                                              if (hour==24) hour = 0; 
+ 169   5                                      }
+ 170   4                              }
+ 171   3                      }       
+ 172   2              }       
+ 173   1      }
+ 174          
+C51 COMPILER V9.02   E_WATCH                                                               11/01/2022 12:45:05 PAGE 4   
+
+ 175          void adjust(unsigned char key)  // Ê±¼äµ÷Õû
+ 176          {
+ 177   1              if (disp_func_flag == 1)
+ 178   1              {
+ 179   2                      if (key == 2)  // ÇĞ»»µ÷ÕûµÄÊ±·ÖÃë
+ 180   2                      {
+ 181   3                              clock_sw++;
+ 182   3                              if (clock_sw==4) clock_sw = 0;
+ 183   3                      }
+ 184   2                      else if (key == 3)  // ¼Ó
+ 185   2                      {
+ 186   3                              switch(clock_sw)
+ 187   3                              {
+ 188   4                                      case 1: sec++; if (sec==60) sec = 0; break;
+ 189   4                                      case 2: min++; if (min==60) min = 0; break;
+ 190   4                                      case 3: hour++; if (hour==24) hour = 0; break;
+ 191   4                              }
+ 192   3                      }
+ 193   2                      else if (key == 4)  // ¼õ
+ 194   2                      {
+ 195   3                              switch(clock_sw)
+ 196   3                              {
+ 197   4                                      case 1: sec--; if (sec==0xff) sec = 59; break;
+ 198   4                                      case 2: min--; if (min==0xff) min = 59; break;
+ 199   4                                      case 3: hour--; if (hour==0xff) hour = 23; break;
+ 200   4                              }
+ 201   3                      }       
+ 202   2              }       
+ 203   1      }
+ 204          
+ 205          void alarm_adjust(unsigned char key)  // µ÷ÕûÄÖÁå
+ 206          {
+ 207   1              if (disp_func_flag == 2)
+ 208   1              {
+ 209   2                      if (key == 2)  // ÇĞ»»µ÷ÕûµÄÊ±·ÖÃë
+ 210   2                      {
+ 211   3                              alarm_sw++;
+ 212   3                              if (alarm_sw==4) alarm_sw = 0;
+ 213   3                      }
+ 214   2                      else if (key == 3)  // ¼Ó
+ 215   2                      {
+ 216   3                              switch(alarm_sw)
+ 217   3                              {
+ 218   4                                      case 1: alarm_s++; if (alarm_s==60) alarm_s = 0; break;
+ 219   4                                      case 2: alarm_m++; if (alarm_m==60) alarm_m = 0; break;
+ 220   4                                      case 3: alarm_h++; if (alarm_h==24) alarm_h = 0; break;
+ 221   4                              }
+ 222   3                      }
+ 223   2                      else if (key == 4) alarm_en = ~alarm_en;  // ÄÖÁå¿ª¹Ø
+ 224   2      
+ 225   2                      if (alarm_en==1)  // ÄÖÁå¿ª¹ØÖ¸Ê¾µÆ
+ 226   2                      {
+ 227   3                              led1 = 0; led2 = 0;
+ 228   3                      }else led1 = 1; 
+ 229   2              }
+ 230   1      }
+ 231          
+ 232          void alarm()  // ÄÖÁåÏìÁå
+ 233          {
+ 234   1              if (alarm_en==1)
+ 235   1              {
+ 236   2                      if (alarm_h==hour && alarm_m==min && alarm_s==sec) alarm_beep = 1;
+C51 COMPILER V9.02   E_WATCH                                                               11/01/2022 12:45:05 PAGE 5   
+
+ 237   2              }
+ 238   1      }
+ 239          
+ 240          void timer_adjust(unsigned char key)  // µ÷Õûµ¹¼ÆÊ±
+ 241          {
+ 242   1              if (disp_func_flag == 3)
+ 243   1              {
+ 244   2                      if (key == 2)  // ÇĞ»»µ÷ÕûµÄÊ±·ÖÃë
+ 245   2                      {
+ 246   3                              timer_sw++;
+ 247   3                              if (timer_sw==4) timer_sw = 0;
+ 248   3                      }
+ 249   2                      else if (key == 3)  // ¼Ó
+ 250   2                      {
+ 251   3                              switch(timer_sw)
+ 252   3                              {
+ 253   4                                      case 1: timer_ms++; if (timer_ms==100) timer_ms = 0; break;
+ 254   4                                      case 2: timer_s++; if (timer_s==60) timer_s = 0; break;
+ 255   4                                      case 3: timer_m++; if (timer_m==100) timer_m = 0; break;
+ 256   4                              }
+ 257   3                      }
+ 258   2                      else if (key == 4) timer_en = ~timer_en;  // µ¹¼ÆÊ±¿ª¹Ø
+ 259   2      
+ 260   2                      if (timer_en==1)  // µ¹¼ÆÊ±¿ª¹ØÖ¸Ê¾µÆ
+ 261   2                      {
+ 262   3                              led3 = 0; led4 = 0;
+ 263   3                      }else led4 = 1; 
+ 264   2              }
+ 265   1      }
+ 266          
+ 267          void timer_count()      // µ¹¼ÆÊ±¼ÆÊı
+ 268          {
+ 269   1              if (timer_en == 1)
+ 270   1              {
+ 271   2                      if (flag_timer==1)
+ 272   2                      {
+ 273   3                              flag_timer = 0;
+ 274   3                              if (timer_ms==0)
+ 275   3                              {
+ 276   4                                      if (timer_s==0)
+ 277   4                                      {
+ 278   5                                              if (timer_m==0)  // Ê±¼äµ½£¬ÏìÁå
+ 279   5                                              {
+ 280   6                                                      timer_beep = 1;
+ 281   6                                                      timer_en = 0;
+ 282   6                                              }else
+ 283   5                                              {
+ 284   6                                                      timer_m--;
+ 285   6                                                      timer_s = 59;
+ 286   6                                                      timer_ms = 99;
+ 287   6                                              }
+ 288   5                                      }else
+ 289   4                                      {
+ 290   5                                              timer_s--;
+ 291   5                                              timer_ms = 99;
+ 292   5                                      }
+ 293   4                              }else timer_ms--;
+ 294   3                      }       
+ 295   2              }       
+ 296   1      }
+ 297          
+ 298          void stopwatch_config(unsigned char key)  // Ãë±íÅäÖÃ
+C51 COMPILER V9.02   E_WATCH                                                               11/01/2022 12:45:05 PAGE 6   
+
+ 299          {
+ 300   1              if (disp_func_flag == 4)
+ 301   1              {
+ 302   2                      if (key == 2) stopwatch_en = 1;  // Ãë±í¿ªÊ¼    
+ 303   2                      else if (key == 3) stopwatch_en = 0;  // Ãë±í½áÊø
+ 304   2                      else if (key == 4)  // Ãë±íÇåÁã
+ 305   2                      {
+ 306   3                              stopwatch_m=0; stopwatch_s=0; stopwatch_ms=0;
+ 307   3                      }
+ 308   2              }
+ 309   1      }
+ 310          
+ 311          void stopwatch_count()  // Ãë±í¼ÆÊı£¬¼ÆÂú100·ÖÖÓºóÇåÁãÑ­»·
+ 312          {
+ 313   1              if (stopwatch_en == 1)
+ 314   1              {
+ 315   2                      if (flag_stopwatch==1)
+ 316   2                      {
+ 317   3                              flag_stopwatch = 0;
+ 318   3                              stopwatch_ms++;
+ 319   3                              if (stopwatch_ms==100)
+ 320   3                              {
+ 321   4                                      stopwatch_ms = 0;
+ 322   4                                      stopwatch_s++;
+ 323   4                                      if (stopwatch_s==60)
+ 324   4                                      {
+ 325   5                                              stopwatch_s = 0;
+ 326   5                                              stopwatch_m++;
+ 327   5                                              if (stopwatch_m==100) stopwatch_m = 0;  
+ 328   5                                      }
+ 329   4                              }
+ 330   3                      }       
+ 331   2              }       
+ 332   1      }
+ 333          
+ 334          void display()
+ 335          {
+ 336   1              static unsigned char i=0;  // Î»Ñ¡
+ 337   1              unsigned char H1=0, L1=0, H2=0, L2=0, H3=0, L3=0;  // µ±Ç°ÏÔÊ¾
+ 338   1              static bit j=0;  // ¿ØÖÆÉÁË¸
+ 339   1      
+ 340   1              if (disp_func_flag==0 || disp_func_flag==1){  // Ñ¡Ôñµ±Ç°ÏÔÊ¾µÄÖµ
+ 341   2                      H1 = hour/10;L1 = hour%10; H2 = min/10;L2 = min%10; H3 = sec/10;L3 = sec%10;
+ 342   2              }else if (disp_func_flag==2){
+ 343   2                      H1 = alarm_h/10;L1 = alarm_h%10; H2 = alarm_m/10;L2 = alarm_m%10; H3 = alarm_s/10;L3 = alarm_s%10;
+ 344   2              }else if (disp_func_flag==3){
+ 345   2                      H1 = timer_m/10;L1 = timer_m%10; H2 = timer_s/10;L2 = timer_s%10; H3 = timer_ms/10;L3 = timer_ms%10;
+ 346   2              }else if (disp_func_flag==4){
+ 347   2                      H1 = stopwatch_m/10;L1 = stopwatch_m%10; H2 = stopwatch_s/10;L2 = stopwatch_s%10; H3 = stopwatch_ms/10;L
+             -3 = stopwatch_ms%10;
+ 348   2              }
+ 349   1      
+ 350   1              // ÉÁË¸¿ØÖÆ
+ 351   1              if (flag_blink==1)  // 0.25ÃëÖĞ¶Ï
+ 352   1              {
+ 353   2                      flag_blink = 0;
+ 354   2                      j = ~j;
+ 355   2              }
+ 356   1      
+ 357   1              if (j == 1)  // jÎª1Ê±£¬Ìø¹ı¸ÃÎ»µÄÏÔÊ¾£¬¼´²»ÏÔÊ¾£¬ÊµÏÖÉÁË¸
+ 358   1              {
+ 359   2                      if (disp_func_flag == 1)
+C51 COMPILER V9.02   E_WATCH                                                               11/01/2022 12:45:05 PAGE 7   
+
+ 360   2                      {
+ 361   3                              if (clock_sw == 1){
+ 362   4                                      if (i==6 || i==7) i = 0;
+ 363   4                              }else if (clock_sw == 2){
+ 364   4                                      if (i==3 || i==4) i = 5;
+ 365   4                              }else if (clock_sw == 3){
+ 366   4                                      if (i==0 || i==1) i = 2;
+ 367   4                              }
+ 368   3                      }
+ 369   2                      else if (disp_func_flag == 2)
+ 370   2                      {
+ 371   3                              if (alarm_sw == 1){
+ 372   4                                      if (i==6 || i==7) i = 0;
+ 373   4                              }else if (alarm_sw == 2){
+ 374   4                                      if (i==3 || i==4) i = 5;
+ 375   4                              }else if (alarm_sw == 3){
+ 376   4                                      if (i==0 || i==1) i = 2;
+ 377   4                              }
+ 378   3                      }
+ 379   2                      else if (disp_func_flag == 3)
+ 380   2                      {
+ 381   3                              if (timer_sw == 1){
+ 382   4                                      if (i==6 || i==7) i = 0;
+ 383   4                              }else if (timer_sw == 2){
+ 384   4                                      if (i==3 || i==4) i = 5;
+ 385   4                              }else if (timer_sw == 3){
+ 386   4                                      if (i==0 || i==1) i = 2;
+ 387   4                              }
+ 388   3                      }               
+ 389   2              }
+ 390   1      
+ 391   1              switch(i)  // Î»Ñ¡
+ 392   1              {
+ 393   2                      case 0: LSC=1;LSB=1;LSA=1;P0 = led_num[H1]; break;
+ 394   2                      case 1: LSC=1;LSB=1;LSA=0;P0 = led_num[L1]; break;
+ 395   2                      case 2: LSC=1;LSB=0;LSA=1;P0 = led_num[10]; break;
+ 396   2                      case 3: LSC=1;LSB=0;LSA=0;P0 = led_num[H2]; break;
+ 397   2                      case 4: LSC=0;LSB=1;LSA=1;P0 = led_num[L2]; break;
+ 398   2                      case 5: LSC=0;LSB=1;LSA=0;P0 = led_num[10]; break;
+ 399   2                      case 6: LSC=0;LSB=0;LSA=1;P0 = led_num[H3]; break;
+ 400   2                      case 7: LSC=0;LSB=0;LSA=0;P0 = led_num[L3]; break;
+ 401   2              }
+ 402   1      
+ 403   1              delay(2);
+ 404   1              P0=0x00;  // ÏûÒô
+ 405   1              i++;
+ 406   1              if (i==8) i=0;
+ 407   1      }
+ 408          
+ 409          
+ 410          void main()
+ 411          {
+ 412   1              unsigned char key;
+ 413   1      
+ 414   1              timer0_config();
+ 415   1              timer1_config();
+ 416   1              while(1)
+ 417   1              {
+ 418   2                      // ¹¦ÄÜº¯Êı
+ 419   2                      clock();
+ 420   2                      buzzer();
+ 421   2                      alarm();
+C51 COMPILER V9.02   E_WATCH                                                               11/01/2022 12:45:05 PAGE 8   
+
+ 422   2                      timer_count();
+ 423   2                      stopwatch_count();
+ 424   2      
+ 425   2                      // É¨Ãè°´¼ü²¢Ö´ĞĞÏàÓ¦²Ù×÷
+ 426   2                      key = key_scan();
+ 427   2                      func_change(key);
+ 428   2                      adjust(key);
+ 429   2                      alarm_adjust(key);
+ 430   2                      timer_adjust(key);
+ 431   2                      stopwatch_config(key);  
+ 432   2                      
+ 433   2                      // ÏÔÊ¾
+ 434   2                      display();
+ 435   2              }
+ 436   1      }
+ 437          
+ 438          void timer0_interrupt() interrupt 1
+ 439          {
+ 440   1              static unsigned char cnt=0;
+ 441   1              
+ 442   1              cnt++;
+ 443   1              TH0 = 0xdc;   
+ 444   1              TL0 = 0x00;
+ 445   1              flag_timer = 1; flag_stopwatch = 1;      // 10ms
+ 446   1              if (cnt==100)
+ 447   1              {
+ 448   2                      cnt = 0;
+ 449   2                      flag_clock = 1; 
+ 450   2                      flag_beep = 1;  // 1s
+ 451   2              }
+ 452   1      }
+ 453          
+ 454          void timer1_interrupt() interrupt 3
+ 455          {       
+ 456   1              static unsigned char cnt=0;
+ 457   1      
+ 458   1              cnt++;
+ 459   1              TH1 = 0xf8;   
+ 460   1              TL1 = 0xcd;
+ 461   1              flag_button = 1;
+ 462   1              beep_flip = 1;  // 2ms
+ 463   1              if (cnt==125)
+ 464   1              {
+ 465   2                      cnt = 0;
+ 466   2                      flag_blink = 1; // 0.25s
+ 467   2              }
+ 468   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1471    ----
+   CONSTANT SIZE    =     11    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     27    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =     13    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,124 @@
+C51 COMPILER V9.02   TIMER                                                                 12/19/2022 09:56:58 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE TIMER
+OBJECT MODULE PLACED IN ..\Obj\timer.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\Public\timer.c BROWSE INCDIR(..\Api;..\Public;..\User) DEBUG OBJECTEXTEN
+                    -D PRINT(..\Obj\timer.lst) OBJECT(..\Obj\timer.obj)
+
+line level    source
+
+   1          #include "timer.h"
+   2          
+   3          void timer0_config()  //11.0592MHz
+   4          {
+   5   1              TMOD &= 0xf0;
+   6   1              TMOD |= 0x01;  // 计数器0工作在模式1
+   7   1              TR0 = 1;  // 计数器0工作
+   8   1              TH0 = 0xff;   
+   9   1              TL0 = 0xa4;  // 65536-65444=92, 100us
+  10   1              EA = 1;
+  11   1              ET0 = 1;  // 打开中断
+  12   1      }
+  13          
+  14          void timer0_interrupt() interrupt 1
+  15          {
+  16   1              static unsigned char cnt1=0, cnt2=0, cnt3=0, cnt4=0;
+  17   1              static unsigned char low_freq=0, cnt_buzzer=0, cnt_pwm=0;
+  18   1      
+  19   1              cnt1++;
+  20   1              TH0 = 0xff;   
+  21   1              TL0 = 0xa4;  // 65536-65444=92, 100us
+  22   1      
+  23   1              cnt_pwm++;
+  24   1              if (cnt_pwm >= g_pwm_tim_scale) cnt_pwm = 0;  // 周期到了
+  25   1              if (cnt_pwm <= g_pwm_duty) PWM = 1;
+  26   1              else PWM = 0;
+  27   1      
+  28   1              if (cnt1 == 20) // 2ms
+  29   1              {
+  30   2                      cnt1 = 0;
+  31   2                      low_freq++;  // 250Hz发声
+  32   2                      cnt2++;
+  33   2                      
+  34   2                      flag_digital_display = 1;
+  35   2                      flag_matrix_key = 1;
+  36   2      
+  37   2                      if (flag_buzzer_500Hz == 1)      // 500Hz蜂鸣器响0.3s
+  38   2                      {
+  39   3                              BUZZER = !BUZZER;  // 2ms, 500Hz
+  40   3                              cnt_buzzer++;
+  41   3                              if (cnt_buzzer == 150)
+  42   3                              {
+  43   4                                      cnt_buzzer = 0;
+  44   4                                      flag_buzzer_500Hz = 0;  // 响0.3s
+  45   4                              }
+  46   3                      }
+  47   2                      if (low_freq == 2)  // 4ms，250Hz蜂鸣器响0.1s
+  48   2                      {
+  49   3                              low_freq = 0;
+  50   3                              if (flag_buzzer_250Hz == 1)
+  51   3                              {
+  52   4                                      BUZZER = !BUZZER;  // 4ms, 250Hz
+  53   4                                      cnt_buzzer++;
+  54   4                                      if (cnt_buzzer == 25)
+C51 COMPILER V9.02   TIMER                                                                 12/19/2022 09:56:58 PAGE 2   
+
+  55   4                                      {
+  56   5                                              cnt_buzzer = 0;
+  57   5                                              flag_buzzer_250Hz = 0;  // 响0.1s
+  58   5                                      }
+  59   4                              }       
+  60   3                      }
+  61   2              
+  62   2                      if (flag_matrix_key_pressed != 0)  // 长按检测计数器
+  63   2                              matrix_key_hold_cnt++;
+  64   2      
+  65   2                      if (rotate_speed == 2)  // 快摇头
+  66   2                              flag_step_motor = 1;
+  67   2      
+  68   2                      if (cnt2 == 4)  // 8ms
+  69   2                      {
+  70   3                              cnt2 = 0;
+  71   3                              cnt3++;
+  72   3      
+  73   3                              flag_pwm_breath_8ms = 1;
+  74   3                              flag_blink_8ms = 1;
+  75   3      
+  76   3                              if (rotate_speed == 1)  // 慢摇头
+  77   3                                      flag_step_motor = 1;
+  78   3      
+  79   3                              if (cnt3 == 125)        // 1s
+  80   3                              {
+  81   4                                      cnt3 = 0;
+  82   4                                      cnt4++;
+  83   4      
+  84   4                                      flag_timer_1s = 1;
+  85   4                                      flag_cur_time_1s = 1;
+  86   4                                      flag_key_long_press_output_1s = 1;
+  87   4                                      flag_infrared_1s = 1;
+  88   4                                      flag_temp_update_1s = 1;
+  89   4      
+  90   4                                      if (cnt4 == 2)  // 2s
+  91   4                                      {
+  92   5                                              cnt4 = 0;
+  93   5                                              flag_wifi_update_2s = 1;
+  94   5                                      }
+  95   4                              }       
+  96   3                      }
+  97   2              }
+  98   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    206    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      7    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

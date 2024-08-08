@@ -1,0 +1,171 @@
+C51 COMPILER V9.02   TIMER                                                                 12/16/2022 23:19:35 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE TIMER
+OBJECT MODULE PLACED IN ..\Obj\timer.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\Public\timer.c BROWSE INCDIR(..\Api;..\Public;..\User) DEBUG OBJECTEXTEN
+                    -D PRINT(..\Obj\timer.lst) OBJECT(..\Obj\timer.obj)
+
+line level    source
+
+   1          #include "timer.h"
+   2          
+   3          #if USE_TIMER0
+   4          /*******************************
+   5          函数名：timer0_config
+   6          函数功能：定时器0的配置
+   7          函数形参：void
+   8          函数返回值：void
+   9          备注：
+  10          *******************************/
+  11          void timer0_config()  //11.0592MHz
+  12          {
+  13   1              TMOD &= 0xf0;
+  14   1              TMOD |= 0x01;  // 计数器0工作在模式1
+  15   1              TR0 = 1;  // 计数器0工作
+  16   1              TH0 = 0xf8;   
+  17   1              TL0 = 0xcd;  // 65536-63693=1843, 2ms
+  18   1              EA = 1;
+  19   1              ET0 = 1;  // 打开中断
+  20   1      }
+  21          
+  22          /*******************************
+  23          函数名：timer0_interrupt
+  24          函数功能：定时器0的中断服务函数
+  25          函数形参：void
+  26          函数返回值：void
+  27          备注：
+  28          *******************************/
+  29          void timer0_interrupt() interrupt 1
+  30          {
+  31   1              static unsigned char cnt0=0, cnt1=0, cnt_buzzer=0;
+  32   1      
+  33   1              cnt0++;
+  34   1              cnt1++;
+  35   1              TH0 = 0xf8;   
+  36   1              TL0 = 0xcd;  // 65536-63693=1843, 2ms
+  37   1      
+  38   1              flag_digital_display = 1;
+  39   1              flag_matrix_key = 1;
+  40   1                      
+  41   1              if (cnt1 == 250)  // 500ms
+  42   1              {
+  43   2                      cnt1 = 0;
+  44   2                      flag_key_long_press_output_500ms = 1;   
+  45   2              }
+  46   1              
+  47   1              if (flag_buzzer_500Hz == 1)      // 500Hz蜂鸣器响0.3s
+  48   1              {
+  49   2                      buzzer = !buzzer;  // 2ms, 500Hz
+  50   2                      cnt_buzzer++;
+  51   2                      if (cnt_buzzer == 150)
+  52   2                      {
+  53   3                              cnt_buzzer = 0;
+  54   3                              flag_buzzer_500Hz = 0;  // 响0.3s
+C51 COMPILER V9.02   TIMER                                                                 12/16/2022 23:19:35 PAGE 2   
+
+  55   3                      }
+  56   2              }
+  57   1      
+  58   1              if (cnt0 == 2)  // 4ms，250Hz蜂鸣器响0.1s
+  59   1              {
+  60   2                      cnt0 = 0;
+  61   2                      if (flag_buzzer_250Hz == 1)
+  62   2                      {
+  63   3                              buzzer = !buzzer;  // 4ms, 250Hz
+  64   3                              cnt_buzzer++;
+  65   3                              if (cnt_buzzer == 50)
+  66   3                              {
+  67   4                                      cnt_buzzer = 0;
+  68   4                                      flag_buzzer_250Hz = 0;  // 响0.1s
+  69   4                              }
+  70   3                      }       
+  71   2              }
+  72   1      
+  73   1              if (flag_matrix_key_pressed != 0)  // 长按检测计数器
+  74   1                      matrix_key_hold_cnt++;
+  75   1      }
+  76          #endif
+  77          
+  78          #if USE_TIMER1
+              /*******************************
+              函数名：timer1_config
+              函数功能：定时器1的配置
+              函数形参：void
+              函数返回值：void
+              备注：
+              *******************************/
+              void timer1_config()  //11.0592MHz
+              {
+                      TMOD &= 0x0f;
+                      TMOD |= 0x10;  // 计数器1工作在模式1
+                      TR1 = 1;  // 计数器1工作
+                      TH1 = 0xf8;   
+                      TL1 = 0xcd;  // 65536-63693=1843, 2ms
+                      EA = 1;
+                      ET1 = 1;  // 打开中断
+              }               
+              
+              /*******************************
+              函数名：timer1_interrupt
+              函数功能：定时器1的中断服务函数
+              函数形参：void
+              函数返回值：void
+              备注：
+              *******************************/
+              
+              void timer1_interrupt() interrupt 3
+              {       
+                      TH1 = 0xf8;   
+                      TL1 = 0xcd;
+              }
+              #endif
+ 111          
+ 112          #if USE_TIMER2
+              /*******************************
+              函数名：timer2_config
+              函数功能：定时器2的配置
+              函数形参：void
+C51 COMPILER V9.02   TIMER                                                                 12/16/2022 23:19:35 PAGE 3   
+
+              函数返回值：void
+              备注：
+              *******************************/
+              void timer2_config()  //11.0592MHz
+              {
+                      RCLK = 0;
+                      TCLK = 0;
+                      CP_RL2 = 0;  // 计数器2工作在16位重装载模式
+                      TR2 = 1;  // 计数器2工作
+                      RCAP2H = TH2 = 0xff;   
+                      RCAP2L = TL2 = 0xf6;  // 65536-65526=10, 10us
+                      EA = 1;
+                      ET2 = 1;  // 打开中断
+              }               
+              
+              /*******************************
+              函数名：timer2_interrupt
+              函数功能：定时器2的中断服务函数
+              函数形参：void
+              函数返回值：void
+              备注：TF2要软件清零，16位的自动重装载
+              *******************************/
+              void timer2_interrupt() interrupt 5
+              {       
+                      TF2 = 0;
+              }
+              #endif
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    100    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      3    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

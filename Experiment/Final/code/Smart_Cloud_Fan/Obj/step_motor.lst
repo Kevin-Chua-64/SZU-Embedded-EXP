@@ -1,0 +1,62 @@
+C51 COMPILER V9.02   STEP_MOTOR                                                            12/19/2022 09:56:57 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE STEP_MOTOR
+OBJECT MODULE PLACED IN ..\Obj\step_motor.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\Api\step_motor.c BROWSE INCDIR(..\Api;..\Public;..\User) DEBUG OBJECTEXT
+                    -END PRINT(..\Obj\step_motor.lst) OBJECT(..\Obj\step_motor.obj)
+
+line level    source
+
+   1          #include "step_motor.h"
+   2          
+   3          /*******************************
+   4          left and right rotation
+   5          the delay in each cycle (not consider other code delay) is at least 80，that is 800us
+   6          rotate faster when the delay is smaller
+   7          *******************************/
+   8          bit flag_step_motor=0;
+   9          void step_motor_round()
+  10          {
+  11   1              static unsigned int step=1;
+  12   1              static bit dir=0;
+  13   1              
+  14   1              if (flag_step_motor == 1)
+  15   1              {
+  16   2                      flag_step_motor = 0;
+  17   2                      switch((step%8)+1)//8个节拍控制：A->AB->B->BC->C->CD->D->DA
+  18   2                      {
+  19   3                              case 1: IN1_A=1;IN2_B=0;IN3_C=0;IN4_D=0;break;
+  20   3                              case 2: IN1_A=1;IN2_B=1;IN3_C=0;IN4_D=0;break;
+  21   3                              case 3: IN1_A=0;IN2_B=1;IN3_C=0;IN4_D=0;break;
+  22   3                              case 4: IN1_A=0;IN2_B=1;IN3_C=1;IN4_D=0;break;
+  23   3                              case 5: IN1_A=0;IN2_B=0;IN3_C=1;IN4_D=0;break;
+  24   3                              case 6: IN1_A=0;IN2_B=0;IN3_C=1;IN4_D=1;break;
+  25   3                              case 7: IN1_A=0;IN2_B=0;IN3_C=0;IN4_D=1;break;
+  26   3                              case 8: IN1_A=1;IN2_B=0;IN3_C=0;IN4_D=1;break;
+  27   3                      } 
+  28   2                      if (dir==0)      // 正向
+  29   2                      {
+  30   3                              step++;
+  31   3                              if (step==2000) dir=1;
+  32   3                      } else
+  33   2                      {
+  34   3                              step--;  // 反向
+  35   3                              if (step==0) dir=0;
+  36   3                      }
+  37   2              }
+  38   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    164    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      2    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

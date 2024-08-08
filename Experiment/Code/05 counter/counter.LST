@@ -1,0 +1,130 @@
+C51 COMPILER V9.02   COUNTER                                                               10/24/2022 11:56:34 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE COUNTER
+OBJECT MODULE PLACED IN counter.OBJ
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE counter.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include <reg52.h>
+   2          unsigned char code led_num[11] = {0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x6f, 0x40};
+   3          sbit LSA=P2^2;
+   4          sbit LSB=P2^3;
+   5          sbit LSC=P2^4;
+   6          unsigned char hour=0, min=0, sec=0;
+   7          bit flag1=0, flag2=0;
+   8          
+   9          void timer0_config()  //11.0592MHz
+  10          {
+  11   1              TMOD &= 0xf0;
+  12   1              TMOD |= 0x01;  // 计数器0工作在模式1
+  13   1              TR0 = 1;  // 计数器0工作
+  14   1              TH0 = 0xf8;   
+  15   1              TL0 = 0xcd;  // 65536-63693=1843, 2ms
+  16   1      }
+  17          
+  18          void timer1_config()  //11.0592MHz
+  19          {
+  20   1              TMOD &= 0x0f;
+  21   1              TMOD |= 0x10;  // 计数器1工作在模式1
+  22   1              TR1 = 1;  // 计数器1工作
+  23   1              TH1 = 0xdc;   
+  24   1              TL1 = 0x00;  // 65536-56320=9216, 10ms
+  25   1      }
+  26                  
+  27          void count()
+  28          {
+  29   1              if (flag2==1)
+  30   1              {
+  31   2                      flag2 = 0;
+  32   2                      sec++;
+  33   2                      if (sec==60)
+  34   2                      {
+  35   3                              sec = 0;
+  36   3                              min++;
+  37   3                              if (min==60)
+  38   3                              {
+  39   4                                      min = 0;
+  40   4                                      hour++;
+  41   4                                      if (hour==24) hour = 0; 
+  42   4                              }
+  43   3                      }
+  44   2              }               
+  45   1      }
+  46                                           
+  47          void display()
+  48          {
+  49   1              static unsigned char i=0;
+  50   1      
+  51   1              switch(i)  // 位选和段选
+  52   1              {
+  53   2                      case 0: LSC=1;LSB=1;LSA=1;P0 = led_num[hour/10]; break;
+  54   2                      case 1: LSC=1;LSB=1;LSA=0;P0 = led_num[hour%10]; break;
+  55   2                      case 2: LSC=1;LSB=0;LSA=1;P0 = led_num[10]; break;
+C51 COMPILER V9.02   COUNTER                                                               10/24/2022 11:56:34 PAGE 2   
+
+  56   2                      case 3: LSC=1;LSB=0;LSA=0;P0 = led_num[min/10]; break;
+  57   2                      case 4: LSC=0;LSB=1;LSA=1;P0 = led_num[min%10]; break;
+  58   2                      case 5: LSC=0;LSB=1;LSA=0;P0 = led_num[10]; break;
+  59   2                      case 6: LSC=0;LSB=0;LSA=1;P0 = led_num[sec/10]; break;
+  60   2                      case 7: LSC=0;LSB=0;LSA=0;P0 = led_num[sec%10]; break;
+  61   2              }
+  62   1      
+  63   1              if (flag1==1)
+  64   1              {
+  65   2                      flag1 = 0;
+  66   2                      P0=0x00;  // 消音
+  67   2                      i++;
+  68   2                      if (i==8) i=0;
+  69   2              }
+  70   1      }
+  71          
+  72          void main()
+  73          {       
+  74   1              EA = 1; // 中断总开关
+  75   1              ET0 = 1;  // 定时器0中断分开关
+  76   1              ET1 = 1;  // 定时器1中断分开关
+  77   1              timer0_config();
+  78   1              timer1_config();
+  79   1              while(1)
+  80   1              {
+  81   2                      count();
+  82   2                      display();
+  83   2              }               
+  84   1      }
+  85          
+  86          void display_2ms() interrupt 1
+  87          {
+  88   1              TH0 = 0xf8;   
+  89   1              TL0 = 0xcd;
+  90   1              flag1 = 1;
+  91   1      }
+  92          
+  93          void count_1s() interrupt 3
+  94          {
+  95   1              static unsigned char cnt=0;
+  96   1              
+  97   1              cnt++;
+  98   1              TH1 = 0xdc;   
+  99   1              TL1 = 0x00;
+ 100   1              if (cnt==100)
+ 101   1              {
+ 102   2                      cnt = 0;
+ 103   2                      flag2 = 1;
+ 104   2              }
+ 105   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    279    ----
+   CONSTANT SIZE    =     11    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      5    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

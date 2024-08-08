@@ -1,0 +1,346 @@
+C51 COMPILER V9.02   WIFI                                                                  12/19/2022 09:56:57 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE WIFI
+OBJECT MODULE PLACED IN ..\Obj\wifi.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\Api\wifi.c BROWSE INCDIR(..\Api;..\Public;..\User) DEBUG OBJECTEXTEND PR
+                    -INT(..\Obj\wifi.lst) OBJECT(..\Obj\wifi.obj)
+
+line level    source
+
+   1          #include "wifi.h"
+   2          
+   3          xdata unsigned char WIFI_RX_BUF[WIFI_REC_LEN];
+   4          bit WIFI_RX_STA=0;  // 接收完成标志，不影响下一次的接收，但需要手动清零
+   5          /*******************************
+   6          initialize the uart for wifi
+   7          input parameter baud rate
+   8          RX->P30  TX->P31
+   9          *******************************/
+  10          void uart_init(unsigned char baud)      //baud: 0xfa->9600 0xfd->19200 0xff->57600
+  11          {
+  12   1              TMOD|=0X20;       //设置计数器1工作方式2
+  13   1              SCON=0X50;        //设置串口工作方式1
+  14   1              PCON=0X80;        //波特率加倍
+  15   1              TH1=baud;         //计数器初始值设置
+  16   1              TL1=baud;
+  17   1              ES=1;             //打开接收中断
+  18   1              EA=1;             //打开总中断
+  19   1              TR1=1;            //打开计数器  
+  20   1      }
+  21          
+  22          void wifi_SendByte(unsigned char dat)
+  23          {
+  24   1              ES=0;         //关闭串口中断
+  25   1              TI=0;         //清发送完毕中断请求标志位
+  26   1              SBUF = dat;   //发送
+  27   1              while(TI==0); //等待发送完毕
+  28   1              TI=0;         //清发送完毕中断请求标志位
+  29   1              ES=1;         //允许串口中断
+  30   1      }
+  31          
+  32          void wifi_SendString(unsigned char *str)
+  33          {
+  34   1              TR0 = 0;   //避免中断影响读写总线时序，暂时不使能定时器0
+  35   1              while(*str != '\0') //字符串结束标志
+  36   1              {
+  37   2                      wifi_SendByte(*str);
+  38   2                      delay_10us(10); // 延时，等待字节发送完
+  39   2                      str++;  
+  40   2              }
+  41   1              TR0 = 1;
+  42   1      }
+  43          
+  44          /*******************************
+  45          uart interrupt
+  46          receive a string from wifi through uart
+  47          *******************************/
+  48          void wifi_IRQn() interrupt 4
+  49          {
+  50   1              static unsigned char i=0;
+  51   1              
+  52   1              if (RI)
+  53   1              {
+  54   2                      if (i==0)
+C51 COMPILER V9.02   WIFI                                                                  12/19/2022 09:56:57 PAGE 2   
+
+  55   2                              memset(WIFI_RX_BUF, 0, sizeof WIFI_RX_BUF);  //清空数组          
+  56   2                      RI=0;  // 清标志
+  57   2                      WIFI_RX_BUF[i++] = SBUF;  // 读取接收到的数据存入wifi缓冲
+  58   2                      if (WIFI_RX_BUF[i-2]=='\r' && WIFI_RX_BUF[i-1]=='\n')  //检测到回车结束标志，然后软件删标志
+  59   2                      {
+  60   3                              WIFI_RX_BUF[i-2] = '\0';  // 手动添加'\0'
+  61   3                              WIFI_RX_BUF[i-1] = 0;
+  62   3                              i = 0;
+  63   3                              WIFI_RX_STA = 1;
+  64   3                      }
+  65   2                      if (i>WIFI_REC_LEN) i=0;  // 超出最大字节数，舍弃
+  66   2              }               
+  67   1      }
+  68          
+  69          /*******************************
+  70          send AT instruction in ESP8266
+  71          备注：第一个形参是指令，第二个是期待的回复，也就是正常的AT相应，如"AT+CWMODE_CUR=1","OK"
+  72                    返回值0：正常，1：等待正确响应超时
+  73          *******************************/
+  74          bit Wifi_SendAT(char *sAT, char *expectATRes)
+  75          {
+  76   1              unsigned int timeCnt=0, timeOut=1000;   // 超时计数，超时上限
+  77   1              
+  78   1              //wifi连接时间较长，增加上限
+  79   1              if(strstr(sAT, "AT+CWJAP_CUR=\"") != NULL) timeOut = 8000;
+  80   1      
+  81   1              wifi_SendString(sAT);  //发送AT指令
+  82   1              //等待接收正确指令
+  83   1              while(1)
+  84   1              {
+  85   2                      while(WIFI_RX_STA != 1)  //等待接收完成标志
+  86   2                      {
+  87   3                              timeCnt++;
+  88   3                              delay_ms(1);
+  89   3                              
+  90   3                              if(timeCnt > timeOut)
+  91   3                                      return 1;  //超时
+  92   3                      }
+  93   2                      WIFI_RX_STA = 0;  //清除接收标志
+  94   2                      
+  95   2                      //查询接收的内容中是否有期望回显的内容
+  96   2                      if(strstr(WIFI_RX_BUF, expectATRes) != NULL)
+  97   2                              break;
+  98   2              }
+  99   1              return 0;
+ 100   1      }
+ 101          
+ 102          /*******************************
+ 103          connect to wifi
+ 104          备注：返回值0：正常，1：无法设置station模式，2：无法连接wifi
+ 105          *******************************/
+ 106          unsigned char Wifi_Connect()
+ 107          {
+ 108   1              bit ret;
+ 109   1              
+ 110   1              //设置station模式
+ 111   1              ret = Wifi_SendAT(STATION_MODE, "OK");
+ 112   1              if(ret) return 1;  // 无法设置station模式
+ 113   1              
+ 114   1              //连接wifi
+ 115   1              ret = Wifi_SendAT(CONNECT_WIFI, "OK");
+ 116   1              if(ret) return 2;  // 无法连接wifi
+C51 COMPILER V9.02   WIFI                                                                  12/19/2022 09:56:57 PAGE 3   
+
+ 117   1              
+ 118   1              return 0;
+ 119   1      }
+ 120          
+ 121          /*******************************
+ 122          connect to the TCP server on the computer
+ 123          备注：返回值0：正常，1：无法设置单连接，2：无法设置透传模式，3：无法连接服务器
+ 124          *******************************/
+ 125          unsigned char Wifi_ConnectServer()
+ 126          {
+ 127   1              bit ret;
+ 128   1              
+ 129   1              //设置单连接模式
+ 130   1              ret = Wifi_SendAT(SINGLE_CONNECTED, "OK");
+ 131   1              if(ret) return 1;  // 无法设置单连接
+ 132   1              
+ 133   1              //设置透传模式
+ 134   1              ret = Wifi_SendAT(SERIANET_MODE, "OK");
+ 135   1              if(ret) return 2;  // 无法设置透传模式
+ 136   1              
+ 137   1              //连接服务器
+ 138   1              ret = Wifi_SendAT(CONNECT_SERVER, "OK");
+ 139   1              if(ret) return 3;  // 无法连接服务器
+ 140   1              
+ 141   1              return 0;
+ 142   1      }
+ 143          
+ 144          /*******************************
+ 145          enter seriaNet
+ 146          备注：返回值0：正常，1：无法进入透传
+ 147          *******************************/
+ 148          void Wifi_EnterSeriaNet()
+ 149          {
+ 150   1              wifi_SendString(ENTER_SERIANET);
+ 151   1      }
+ 152          
+ 153          /*******************************
+ 154          exit seriaNet
+ 155          *******************************/
+ 156          void Wifi_ExitSeriaNet()
+ 157          {
+ 158   1              wifi_SendString("\r\n");  //硬件bug，串口第一次发送数据，最开始会有一个空格，为了和后面指令进行区分
+ 159   1              delay_ms(100);
+ 160   1              wifi_SendString(EXIT_SERIANET);
+ 161   1              delay_ms(1000); 
+ 162   1      }
+ 163          
+ 164          /*******************************
+ 165          initialize wifi
+ 166          备注：返回值0：正常，1：无法连接wifi，2：无法连接服务器，3：无法进入透传
+ 167          *******************************/
+ 168          unsigned char Wifi_Init()
+ 169          {
+ 170   1              unsigned char ret;
+ 171   1              
+ 172   1              uart_init(0xfd);  // 先配置串口
+ 173   1              Wifi_ExitSeriaNet();    // 退出透传
+ 174   1              //连接wifi
+ 175   1              ret = Wifi_Connect();
+ 176   1              if(ret) return 1;
+ 177   1              //连接服务器
+ 178   1              ret = Wifi_ConnectServer();
+C51 COMPILER V9.02   WIFI                                                                  12/19/2022 09:56:57 PAGE 4   
+
+ 179   1              if(ret) return 2;
+ 180   1              //进入透传
+ 181   1              Wifi_EnterSeriaNet();
+ 182   1      
+ 183   1              return 0;
+ 184   1      }
+ 185          
+ 186          /*******************************
+ 187          get the time in the response
+ 188          *******************************/
+ 189          void Wifi_GetTime()
+ 190          {
+ 191   1              char *p;  // 位置指针
+ 192   1              unsigned char sum = 0;  // 数据的值
+ 193   1              unsigned char bitNum = 2;  // 数据的位数
+ 194   1      
+ 195   1              // 指针指向对应时间名称的第一个字符
+ 196   1              p = strstr(WIFI_RX_BUF, "E1");
+ 197   1              p += 3;  //指针偏移到首个数据字符位置
+ 198   1              while(bitNum--)  // 把读取到的位拼接成一个整数
+ 199   1              {
+ 200   2                      sum += (*p++ - '0');
+ 201   2                      if(bitNum != 0)
+ 202   2                              sum *= 10;
+ 203   2              }
+ 204   1              if (sum < 24)
+ 205   1                      cur_time_hour = sum;
+ 206   1      
+ 207   1              sum = 0;
+ 208   1              bitNum = 2;
+ 209   1              p = strstr(WIFI_RX_BUF, "E2");
+ 210   1              p += 3;  //指针偏移到首个数据字符位置
+ 211   1              while(bitNum--)  // 把读取到的位拼接成一个整数
+ 212   1              {
+ 213   2                      sum += (*p++ - '0');
+ 214   2                      if(bitNum != 0)
+ 215   2                              sum *= 10;
+ 216   2              }
+ 217   1              if (sum < 59)
+ 218   1                      cur_time_min = sum;
+ 219   1      
+ 220   1              sum = 0;
+ 221   1              bitNum = 2;
+ 222   1              p = strstr(WIFI_RX_BUF, "E3");
+ 223   1              p += 3;  //指针偏移到首个数据字符位置
+ 224   1              while(bitNum--)  // 把读取到的位拼接成一个整数
+ 225   1              {
+ 226   2                      sum += (*p++ - '0');
+ 227   2                      if(bitNum != 0)
+ 228   2                              sum *= 10;
+ 229   2              }
+ 230   1              if (sum < 59)
+ 231   1                      cur_time_sec = sum;     
+ 232   1      }
+ 233          /*******************************
+ 234          detect the response
+ 235          *******************************/
+ 236          bit Wifi_GetEventExist(char *eventNum)
+ 237          {       
+ 238   1              //找不到buf中对应事件的位置，返回0
+ 239   1              if((strstr(WIFI_RX_BUF, eventNum)) != NULL)
+ 240   1                      return 1;
+C51 COMPILER V9.02   WIFI                                                                  12/19/2022 09:56:57 PAGE 5   
+
+ 241   1              else
+ 242   1                      return 0;
+ 243   1      }
+ 244          
+ 245          /*******************************
+ 246          analysis the response from the server and update the global variable
+ 247          *******************************/
+ 248          void Wifi_Analysis_Response()
+ 249          {
+ 250   1              bit ret0;
+ 251   1              unsigned char ret=0;
+ 252   1      
+ 253   1              while (WIFI_RX_STA == 0)  // 等待接收完成标志
+ 254   1              WIFI_RX_STA = 0;  // 清标志
+ 255   1      
+ 256   1              ret0 = Wifi_GetEventExist("K1");
+ 257   1              if (ret0 == 1) ret = 1;
+ 258   1              ret0 = Wifi_GetEventExist("K2");
+ 259   1              if (ret0 == 1) ret = 2; 
+ 260   1              ret0 = Wifi_GetEventExist("K3");
+ 261   1              if (ret0 == 1) ret = 3;
+ 262   1              ret0 = Wifi_GetEventExist("K4");
+ 263   1              if (ret0 == 1) ret = 4;
+ 264   1              ret0 = Wifi_GetEventExist("K5");
+ 265   1              if (ret0 == 1) ret = 5;
+ 266   1              ret0 = Wifi_GetEventExist("K6");
+ 267   1              if (ret0 == 1) ret = 6;
+ 268   1      
+ 269   1              if (ret==1)      // 模式：关、标准、睡眠风、温控
+ 270   1              {
+ 271   2                      fan_mode = (fan_mode+1)%4;      
+ 272   2                      if (fan_mode==0)  // 关机时复位
+ 273   2                      {
+ 274   3                              rotate_speed = 0;  // 不摇头
+ 275   3                              fan_speed = 1;  // 速度为1档
+ 276   3                              timer_mode = 0;  // 定时关闭功能关
+ 277   3                              timer_min = 0;
+ 278   3                              timer_sec = 0;  // 定时清空
+ 279   3                      } else if (fan_mode==3)  // 温控开始时记录当时温度和占空比
+ 280   2                      {
+ 281   3                              start_temp = temp;
+ 282   3                              start_duty = g_pwm_duty;        
+ 283   3                      }       
+ 284   2              } else if (ret==2 && fan_mode!=0)       // 左右摇头
+ 285   1                      rotate_speed = (rotate_speed+1)%3;      
+ 286   1              else if (ret==3 && fan_mode==1)  // 风速
+ 287   1                      fan_speed = (fan_speed%3)+1;    
+ 288   1              else if (ret==4 && fan_mode!=0)  // 定时器倒计时关机
+ 289   1              {
+ 290   2                      timer_mode = (timer_mode+1)%4;
+ 291   2                      if (timer_mode==0)      // 关闭定时
+ 292   2                      {
+ 293   3                              timer_min = 0;
+ 294   3                              timer_sec = 0;  // 定时清空     
+ 295   3                      }
+ 296   2              }       
+ 297   1              else if (ret==5 && fan_mode!=0)  // 定时器设置时间，单击
+ 298   1              {
+ 299   2                      if (timer_mode==1)
+ 300   2                              timer_sec = (timer_sec+1)%60;
+ 301   2                      else if (timer_mode==2)
+ 302   2                              timer_min = (timer_min+1)%100;  
+C51 COMPILER V9.02   WIFI                                                                  12/19/2022 09:56:57 PAGE 6   
+
+ 303   2              } else if (ret==6)      // 切换显示温度或风扇状态
+ 304   1                      dis_temp_state = ~dis_temp_state; 
+ 305   1      }
+ 306          
+ 307          //输出重定向到串口，调试时使用，不能连wifi芯片，否则串口冲突
+ 308          char putchar(char c)
+ 309          {
+ 310   1              wifi_SendByte(c);
+ 311   1              return c;  //返回给函数的调用者printf
+ 312   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1169    ----
+   CONSTANT SIZE    =    185    ----
+   XDATA SIZE       =     15    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      1      22
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1       3
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

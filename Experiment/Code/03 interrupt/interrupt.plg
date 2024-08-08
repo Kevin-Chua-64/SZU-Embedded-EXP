@@ -1,0 +1,15 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Project:</h2>
+C:\Users\DELL\Desktop\51test\03 interrupt\interrupt.uvproj
+Project File Date:  10/17/2022
+
+<h2>Output:</h2>
+Build target 'Target 1'
+compiling interrupt.c...
+linking...
+Program Size: data=11.1 xdata=0 code=246
+creating hex file from "interrupt"...
+"interrupt" - 0 Error(s), 0 Warning(s).

@@ -1,0 +1,148 @@
+C51 COMPILER V9.02   LCD1602                                                               12/06/2022 00:07:43 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE LCD1602
+OBJECT MODULE PLACED IN lcd1602.OBJ
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE lcd1602.c BROWSE INCDIR(..\12 code_lock) DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include "lcd1602.h"
+   2          
+   3          /*******************************
+   4          函数名：read_lcd1602_state
+   5          函数功能：检测lcd是否处在繁忙状态
+   6          函数形参：void
+   7          函数返回值：u8 
+   8          备注：不繁忙返回0
+   9          *******************************/
+  10          unsigned char read_lcd1602_state()  //读单片机是否为繁忙的状态
+  11          {
+  12   1              unsigned char tmp, state=0;
+  13   1              LCD1602_RS = 0;  // 命令
+  14   1              LCD1602_RW = 1;  // 读
+  15   1              LCD1602_E = 1;
+  16   1              tmp = LCD1602_DATAPORT;
+  17   1              state = (tmp&0x80);      // 只看最高位
+  18   1              LCD1602_E = 0;
+  19   1              return state;  // 为0则为不繁忙
+  20   1      }
+  21          
+  22          /*******************************
+  23          函数名：lcd1602_write_cmd
+  24          函数功能：lcd指令写入
+  25          函数形参：u8 cmd
+  26          函数返回值：void 
+  27          备注：
+  28          *******************************/
+  29          void lcd1602_write_cmd(unsigned char cmd)  // 写指令
+  30          {
+  31   1              //while(read_lcd1602_state());  // 等待LCD退出繁忙状态
+  32   1              LCD1602_RS = 0;  // 命令
+  33   1              LCD1602_RW = 0;  // 写
+  34   1              LCD1602_E = 0;
+  35   1              LCD1602_DATAPORT = cmd;  // 先把指令送到IO
+  36   1              LCD1602_E = 1;
+  37   1              delay_ms(1);
+  38   1              LCD1602_E = 0;
+  39   1      }
+  40          
+  41          /*******************************
+  42          函数名：lcd1602_write_data
+  43          函数功能：lcd一个字节数据写入
+  44          函数形参：u8 dat
+  45          函数返回值：void 
+  46          备注：
+  47          *******************************/
+  48          void lcd1602_write_data(unsigned char dat)      // 写数据
+  49          {
+  50   1              //while(read_lcd1602_state());  // 等待LCD退出繁忙状态
+  51   1              LCD1602_RS = 1;  // 数据
+  52   1              LCD1602_RW = 0;  // 写
+  53   1              LCD1602_E = 0;
+  54   1              LCD1602_DATAPORT = dat;  // 先把数据送到IO
+  55   1              LCD1602_E = 1;
+C51 COMPILER V9.02   LCD1602                                                               12/06/2022 00:07:43 PAGE 2   
+
+  56   1              delay_ms(1);
+  57   1              LCD1602_E = 0;
+  58   1      }
+  59          
+  60          /*******************************
+  61          函数名：lcd1602_cursor_pos_set
+  62          函数功能：lcd设置光标位置
+  63          函数形参：u8 x，y
+  64          函数返回值：void 
+  65          备注：x为列0~15，y为行0~1
+  66          *******************************/
+  67          void lcd1602_cursor_pos_set(unsigned char x,unsigned char y)  // 设置光标的位置
+  68          {
+  69   1              unsigned char address;
+  70   1              //x 代表列，y 代表行，写入地址时要求最高位为1，即加上0x80
+  71   1              if (y>1 || x>15) return;  // 行列参数不对则强制退出
+  72   1              else if (y==0) address = 0x80+x;  // 显示在第一行
+  73   1              else if (y==1) address = 0x80+0x40+x;  // 显示在第二行
+  74   1              lcd1602_write_cmd(address);
+  75   1      }                  
+  76          
+  77          /*******************************
+  78          函数名：lcd1602_init
+  79          函数功能：lcd初始化
+  80          函数形参：void
+  81          函数返回值：void 
+  82          备注：数据总线8位，显示2行，5*7点阵/字符显
+  83                    显示功能开，无光标，光标闪烁
+  84                    写入新数据后光标右移，显示屏不移动
+  85                    最后清屏
+  86          *******************************/
+  87          void lcd1602_init(void)
+  88          {
+  89   1              lcd1602_write_cmd(0x38);  // 数据总线8位，显示2行，5*7点阵/字符
+  90   1              lcd1602_write_cmd(0x0c);  // 显示功能开，无光标，光标闪烁
+  91   1              lcd1602_write_cmd(0x06);  // 写入新数据后光标右移，显示屏不移动
+  92   1              lcd1602_write_cmd(0x01);  // 清屏       
+  93   1      }
+  94          
+  95          /*******************************
+  96          函数名：lcd1602_clear
+  97          函数功能：lcd清屏
+  98          函数形参：void
+  99          函数返回值：void 
+ 100          备注：
+ 101          *******************************/
+ 102          void lcd1602_clear(void)
+ 103          {
+ 104   1              lcd1602_write_cmd(0x01);        
+ 105   1      }
+ 106          
+ 107          /*******************************
+ 108          函数名：lcd1602_show_string
+ 109          函数功能：lcd显示字符串
+ 110          函数形参：char str[]
+ 111          函数返回值：void 
+ 112          备注：
+ 113          *******************************/
+ 114          void lcd1602_show_string(char *str)
+ 115          {
+ 116   1              while(*str != '\0')  // 字符串是以'\0'结尾，只要前面有内容就显示
+ 117   1              {
+C51 COMPILER V9.02   LCD1602                                                               12/06/2022 00:07:43 PAGE 3   
+
+ 118   2              lcd1602_write_data(*str);
+ 119   2                      str++;  // 指针递增
+ 120   2              }
+ 121   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    146    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       4
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

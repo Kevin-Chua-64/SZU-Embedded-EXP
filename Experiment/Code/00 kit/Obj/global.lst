@@ -1,0 +1,26 @@
+C51 COMPILER V9.02   GLOBAL                                                                12/16/2022 23:19:35 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE GLOBAL
+OBJECT MODULE PLACED IN ..\Obj\global.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\Public\global.c BROWSE INCDIR(..\Api;..\Public;..\User) DEBUG OBJECTEXTE
+                    -ND PRINT(..\Obj\global.lst) OBJECT(..\Obj\global.obj)
+
+line level    source
+
+   1          #include "global.h"
+   2          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   ----    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

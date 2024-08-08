@@ -1,0 +1,139 @@
+C51 COMPILER V9.02   MOTOR                                                                 12/06/2022 00:09:17 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE MOTOR
+OBJECT MODULE PLACED IN motor.OBJ
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE motor.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include <reg51.h>
+   2          
+   3          sbit matrix_k1 = P1^3;
+   4          sbit matrix_k2 = P1^2;
+   5          sbit matrix_k3 = P1^1;
+   6          sbit matrix_k4 = P1^0;
+   7          
+   8          sbit DC_Motor = P1^0;
+   9          unsigned char g_tim_H, g_tim_L, g_tim_scale, g_duty;
+  10          
+  11          void delay_ms(unsigned char z)
+  12          {
+  13   1              unsigned char i, j;
+  14   1              for(j=0;j<z;j++)
+  15   1                      for(i=0;i<127;i++);
+  16   1      }
+  17          
+  18          unsigned char matrix_key_scan()
+  19          {
+  20   1              static unsigned char j=0;
+  21   1              static unsigned char key_flag[4]={0x00,0x00,0x00,0x00};  // 四行，倒数第几位为0表示第几列按键没按下
+  22   1              static unsigned char buff[4][4]={{0xff,0xff,0xff,0xff},{0xff,0xff,0xff,0xff},{0xff,0xff,0xff,0xff},{0xff,
+             -0xff,0xff,0xff}};  // 消抖，连续采样8次，8次采样值均相同才视为稳定
+  23   1              unsigned char i;
+  24   1      
+  25   1              switch(j)  // 换行扫描，对应行输入置0，低电平
+  26   1              {
+  27   2                      case 0: P1 = 0x7f; break;
+  28   2                      case 1: P1 = 0xbf; break;
+  29   2                      case 2: P1 = 0xdf; break;
+  30   2                      case 3: P1 = 0xef; break;
+  31   2              }
+  32   1      
+  33   1              buff[j][0] = (buff[j][0]<<1) | matrix_k1;
+  34   1              buff[j][1] = (buff[j][1]<<1) | matrix_k2;
+  35   1              buff[j][2] = (buff[j][2]<<1) | matrix_k3;
+  36   1              buff[j][3] = (buff[j][3]<<1) | matrix_k4;               
+  37   1      
+  38   1              for (i=0;i<4;i++)  //循环检测四个按键
+  39   1              {
+  40   2                      if ( ((key_flag[j]>>i)&0x01)==0x00 && buff[j][i]==0x00 )
+  41   2                      {
+  42   3                              key_flag[j] |= 0x01<<i;  // 置1，表示按键按下
+  43   3                              return (4*j+i + 1);
+  44   3                      }
+  45   2                      else if (buff[j][i]==0xff) key_flag[j] &= ~(0x01<<i);  // 置0，表示按键松开
+  46   2              }
+  47   1      
+  48   1              j++;
+  49   1              if (j==4) j = 0;
+  50   1      
+  51   1              return 0xff;  // 表示按键松开或者处于不稳定状态
+  52   1      } 
+  53          
+  54          void DC_Motor_init(unsigned char tim_H, unsigned char tim_L, unsigned char tim_scale, unsigned char duty) 
+C51 COMPILER V9.02   MOTOR                                                                 12/06/2022 00:09:17 PAGE 2   
+
+             - //11.0592MHz
+  55          {
+  56   1              g_tim_H = tim_H;
+  57   1              g_tim_L = tim_L;
+  58   1              g_tim_scale = tim_scale;
+  59   1              g_duty = duty;
+  60   1      
+  61   1              TMOD &= 0xf0;
+  62   1              TMOD |= 0x01;  // 计数器0工作在模式1
+  63   1              TR0 = 1;  // 计数器0工作
+  64   1              TH0 = tim_H;   
+  65   1              TL0 = tim_L;
+  66   1              EA = 1;
+  67   1              ET0 = 1;  // 打开中断
+  68   1      }
+  69          
+  70          void DC_Motor_duty(unsigned char duty)
+  71          {
+  72   1              g_duty = duty;
+  73   1      }
+  74          
+  75          void main()
+  76          {
+  77   1              unsigned char key=-1;
+  78   1              unsigned char duty=0;
+  79   1              unsigned char period=100;
+  80   1      
+  81   1              DC_Motor_init(0xff, 0xf0, period, 100);
+  82   1      
+  83   1              while (1)
+  84   1              {
+  85   2                      key = matrix_key_scan();
+  86   2                      if (key==1)
+  87   2                      {
+  88   3                              duty += 10;
+  89   3                              if (duty>=period) duty = period;
+  90   3                      } else if (key==2)
+  91   2                      {
+  92   3                              duty -= 10;
+  93   3                              if (duty<=0) duty = 0;
+  94   3                      }
+  95   2                      DC_Motor_duty(duty);
+  96   2                      delay_ms(1);
+  97   2              }
+  98   1      }
+  99          
+ 100          void DC_Motor_interrupt() interrupt 1
+ 101          {
+ 102   1              static unsigned int cnt=0;
+ 103   1              
+ 104   1              cnt++;
+ 105   1              TH0 = g_tim_H;   
+ 106   1              TL0 = g_tim_L;
+ 107   1              if (cnt >= g_tim_scale) cnt = 0;  // 周期到了
+ 108   1              if (cnt <= g_duty) DC_Motor = 1;
+ 109   1              else DC_Motor = 0;
+ 110   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    444    ----
+   CONSTANT SIZE    =   ----    ----
+C51 COMPILER V9.02   MOTOR                                                                 12/06/2022 00:09:17 PAGE 3   
+
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     27       4
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

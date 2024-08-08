@@ -1,0 +1,126 @@
+C51 COMPILER V9.02   INFRARED                                                              12/16/2022 23:19:35 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE INFRARED
+OBJECT MODULE PLACED IN ..\Obj\infrared.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\Api\infrared.c BROWSE INCDIR(..\Api;..\Public;..\User) DEBUG OBJECTEXTEN
+                    -D PRINT(..\Obj\infrared.lst) OBJECT(..\Obj\infrared.obj)
+
+line level    source
+
+   1          #include "infrared.h"
+   2          
+   3          /*******************************
+   4          函数名：ired_init
+   5          函数功能：红外初始化
+   6          函数形参：void
+   7          函数返回值：void 
+   8          备注：外部中断0的配置
+   9          *******************************/
+  10          void ired_init()
+  11          {
+  12   1              IT0=1;  //下降沿触发
+  13   1              EX0=1;  //打开中断0允许
+  14   1              EA=1;   //打开总中断
+  15   1              IRED=1; //初始化端口
+  16   1      }
+  17          
+  18          /*******************************
+  19          函数名：ired
+  20          函数功能：外部中断0服务函数
+  21          函数形参：void
+  22          函数返回值：void 
+  23          备注：解码并且做出反应
+  24          按键键值：
+  25          开关：45H      Mode：46H      静音：47H
+  26          播放暂停：44H  快退：40H      快进：43H
+  27          EQ：07H        VOL-：15H      VOL+：09H
+  28          0：16H         RPT：19H       U/SD：0dH
+  29          1：0cH         2：18H             3：5eH
+  30          4：08H         5：1cH             6：5aH
+  31          7：42H             8：52H                 9：4aH
+  32          *******************************/
+  33          void ired() interrupt 0
+  34          {
+  35   1              unsigned char gired_data[4];  //存储4个字节接收码（地址码+地址反码+控制码+控制反码）
+  36   1              unsigned char ired_key;       //存储解码后的键值 
+  37   1              unsigned char ired_high_time=0;
+  38   1              unsigned int time_cnt=0;
+  39   1              unsigned char i=0,j=0;   
+  40   1      
+  41   1              if(IRED==0)
+  42   1              {
+  43   2                      time_cnt=1000;
+  44   2                      while((!IRED)&&(time_cnt))//等待引导信号9ms低电平结束，若超过10ms强制退出
+  45   2                      {
+  46   3                              delay_10us(1);//延时约10us
+  47   3                              time_cnt--;
+  48   3                              if(time_cnt==0)return;          
+  49   3                      }
+  50   2                      if(IRED)//引导信号9ms低电平已过，进入4.5ms高电平
+  51   2                      {
+  52   3                              time_cnt=500;
+  53   3                              while(IRED&&time_cnt)//等待引导信号4.5ms高电平结束，若超过5ms强制退出
+  54   3                              {
+C51 COMPILER V9.02   INFRARED                                                              12/16/2022 23:19:35 PAGE 2   
+
+  55   4                                      delay_10us(1);
+  56   4                                      time_cnt--;
+  57   4                                      if(time_cnt==0)return;  
+  58   4                              }
+  59   3                              for(i=0;i<4;i++)//循环4次，读取4个字节数据
+  60   3                              {
+  61   4                                      for(j=0;j<8;j++)//循环8次读取每位数据即一个字节
+  62   4                                      {
+  63   5                                              time_cnt=600;
+  64   5                                              while((IRED==0)&&time_cnt)//等待数据1或0前面的0.56ms结束，若超过6ms强制退出
+  65   5                                              {
+  66   6                                                      delay_10us(1);
+  67   6                                                      time_cnt--;
+  68   6                                                      if(time_cnt==0)return;  
+  69   6                                              }
+  70   5                                              time_cnt=20;
+  71   5                                              while(IRED)//等待数据1或0后面的高电平结束，若超过2ms强制退出
+  72   5                                              {
+  73   6                                                      delay_10us(10);//约0.1ms
+  74   6                                                      ired_high_time++;
+  75   6                                                      if(ired_high_time>20)return;    
+  76   6                                              }
+  77   5                                              gired_data[i]>>=1;//先读取的为低位，然后是高位
+  78   5                                              if(ired_high_time>=8)//如果高电平时间大于0.8ms，数据则为1，否则为0
+  79   5                                                      gired_data[i]|=0x80;
+  80   5                                              ired_high_time=0;//重新清零，等待下一次计算时间
+  81   5                                      }
+  82   4                              }
+  83   3                      }
+  84   2                      if(gired_data[2]!=~gired_data[3])//校验控制码与反码，错误则返回
+  85   2                      {
+  86   3                              for(i=0;i<4;i++)
+  87   3                                      gired_data[i]=0;
+  88   3                              return; 
+  89   3                      }
+  90   2              }
+  91   1      
+  92   1              // 解码
+  93   1              ired_key = gired_data[2]/16;  //控制码高4位
+  94   1              ired_key <<= 4;
+  95   1              ired_key |= gired_data[2]%16;  //控制码低4位
+  96   1      
+  97   1              // 以下进行红外解码后的操作             
+  98   1      
+  99   1      }
+ 100          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    317    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       9
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

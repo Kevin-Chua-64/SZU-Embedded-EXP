@@ -1,0 +1,7 @@
+"lcd1602.obj",
+"main.obj",
+"matrix_key.obj",
+"delay.obj" 
+TO "code_lock" 
+RAMSIZE(256) 
+DISABLEWARNING (16) 

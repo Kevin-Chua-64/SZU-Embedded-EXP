@@ -1,0 +1,188 @@
+C51 COMPILER V9.02   MAIN                                                                  12/06/2022 00:07:43 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE main.c BROWSE INCDIR(..\12 code_lock) DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          /********************************
+   2          密码锁
+   3          功能：
+   4          开锁、关锁时lcd有流水灯加载显示
+   5          设有管理员模式，进入管理员模式时，可跳过设置的密码，直接用管理员密码解锁
+   6          开锁时，显示密码锁自初始化以来被打开的总次数
+   7          ********************************/
+   8          #include <reg51.h>
+   9          #include <stdio.h>
+  10          #include "delay.h"
+  11          #include "matrix_key.h"
+  12          #include "lcd1602.h"
+  13          
+  14          unsigned char password[]={' ',' ',' ',' ',' ',' ','\0'};
+  15          unsigned char lockword[]={'*','*','*','*','*','*','\0'};
+  16          unsigned char adminword[]="123456";
+  17          bit state=0; // open
+  18          bit admin=0;
+  19          unsigned char wrong=0;
+  20          unsigned char total=0;  // 总开锁次数
+  21          sbit led = P2^0;
+  22          
+  23          bit compare(unsigned char arr1[], unsigned char arr2[])  // 字符串前6个字符比较
+  24          {
+  25   1              unsigned char i;
+  26   1              for(i = 0; i < 6; i++)
+  27   1              {
+  28   2                      if (arr1[i] != arr2[i]) return 0; // wrong
+  29   2                      i++;
+  30   2              }
+  31   1              return 1; // right
+  32   1      }
+  33          
+  34          void word_init(bit correct)      // 重置密码
+  35          {
+  36   1              unsigned char i;
+  37   1              for(i = 0; i < 6; i++)
+  38   1              {       
+  39   2                      if (correct) password[i] = ' ';
+  40   2                      lockword[i] = '*';
+  41   2              }
+  42   1      }
+  43          
+  44          void loading()  // 加载loading…………
+  45          {
+  46   1              unsigned char i;
+  47   1              unsigned char str[]="  --------------||--------------||";
+  48   1              lcd1602_clear();
+  49   1              lcd1602_cursor_pos_set(0,0);
+  50   1              for (i=0;i<34;i++)
+  51   1              {
+  52   2                      if (i==17)
+  53   2                      {
+  54   3                              lcd1602_cursor_pos_set(15,1);
+  55   3                              lcd1602_write_cmd(0x04);// 写入新数据后光标左移，显示屏不移动;
+C51 COMPILER V9.02   MAIN                                                                  12/06/2022 00:07:43 PAGE 2   
+
+  56   3                      }
+  57   2                      if (i==33)
+  58   2                      {
+  59   3                              lcd1602_cursor_pos_set(0,0);
+  60   3                              lcd1602_write_cmd(0x06);// 写入新数据后光标右移，显示屏不移动;
+  61   3                      }
+  62   2                      lcd1602_write_data(str[i]);
+  63   2                      delay_ms(100);
+  64   2              }
+  65   1              delay_ms(255);
+  66   1              lcd1602_clear();
+  67   1      }
+  68          
+  69          void key_action(unsigned char key)
+  70          {
+  71   1              static unsigned char i=0;
+  72   1              if (key>=0 && key<=9)
+  73   1              {
+  74   2                      if (state == 0)
+  75   2                      {
+  76   3                              if (i<6)
+  77   3                              {
+  78   4                                      password[i] = key+'0';
+  79   4                                      i++;
+  80   4                              }
+  81   3                      }
+  82   2                      else if (state==1 || admin==1)
+  83   2                      {
+  84   3                              if (i<6)
+  85   3                              {
+  86   4                                      lockword[i] = key+'0';
+  87   4                                      i++;
+  88   4                              }
+  89   3                      }
+  90   2              }
+  91   1              else if (key==10 && state==0) // lock
+  92   1              {
+  93   2                      i = 0;
+  94   2                      state = 1;
+  95   2                      loading();
+  96   2              }
+  97   1              else if (key==11 && state==1) // unlock
+  98   1              {
+  99   2                      i = 0;
+ 100   2                      if ( (admin==0 && compare(password, lockword)) || (admin==1 && compare(adminword, lockword)) )
+ 101   2                      {
+ 102   3                              state = 0;
+ 103   3                              admin = 0;
+ 104   3                              wrong = 0;
+ 105   3                              total++;
+ 106   3                              word_init(1);
+ 107   3                              loading();                      
+ 108   3                      }
+ 109   2                      else // 密码错误
+ 110   2                      {
+ 111   3                              word_init(0);
+ 112   3                              wrong++;        
+ 113   3                      }
+ 114   2              }
+ 115   1              else if (key==12 && state==1)  // 管理员密码强行开锁模式
+ 116   1              {
+ 117   2                      i = 0;
+C51 COMPILER V9.02   MAIN                                                                  12/06/2022 00:07:43 PAGE 3   
+
+ 118   2                      admin = ~admin;
+ 119   2                      lcd1602_clear();
+ 120   2                      word_init(0);
+ 121   2              }
+ 122   1      }
+ 123          
+ 124          void display()
+ 125          {
+ 126   1              if (state==0)
+ 127   1              {
+ 128   2                      lcd1602_cursor_pos_set(0,0);
+ 129   2                      lcd1602_show_string(password);
+ 130   2                      lcd1602_cursor_pos_set(0,1);
+ 131   2                      lcd1602_show_string("Open  Total:");
+ 132   2                      lcd1602_write_data(total/100+'0');
+ 133   2                      lcd1602_write_data(total/10%10+'0');
+ 134   2                      lcd1602_write_data(total%10+'0');
+ 135   2              }
+ 136   1              else if (state==1)
+ 137   1              {
+ 138   2                      lcd1602_cursor_pos_set(0,0);
+ 139   2                      lcd1602_show_string(lockword);
+ 140   2                      lcd1602_cursor_pos_set(0,1);
+ 141   2                      if (admin==0) lcd1602_show_string("Lock");
+ 142   2                      else if (admin==1) lcd1602_show_string("Admin");
+ 143   2              }
+ 144   1      }
+ 145          
+ 146          void main()
+ 147          {
+ 148   1              unsigned char key;
+ 149   1      
+ 150   1              lcd1602_init();
+ 151   1      
+ 152   1              while(1)
+ 153   1              {
+ 154   2                      display();      
+ 155   2                      key = matrix_key_scan();
+ 156   2                      key_action(key);
+ 157   2      
+ 158   2                      if (wrong>=3) led = 0;
+ 159   2                      else led = 1;
+ 160   2              }
+ 161   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    513    ----
+   CONSTANT SIZE    =     59    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     24      43
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

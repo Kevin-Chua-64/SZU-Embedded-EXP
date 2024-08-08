@@ -1,0 +1,3 @@
+"seg_led.obj" 
+TO "seg_led" 
+RAMSIZE(256) 

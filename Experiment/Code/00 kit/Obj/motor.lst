@@ -1,0 +1,113 @@
+C51 COMPILER V9.02   MOTOR                                                                 12/13/2022 21:42:01 PAGE 1   
+
+
+C51 COMPILER V9.02, COMPILATION OF MODULE MOTOR
+OBJECT MODULE PLACED IN ..\Obj\motor.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE ..\Api\motor.c BROWSE INCDIR(..\Api;..\Public;..\User) DEBUG OBJECTEXTEND P
+                    -RINT(..\Obj\motor.lst) OBJECT(..\Obj\motor.obj)
+
+line level    source
+
+   1          #include "motor.h"
+   2          
+   3          unsigned char g_motor_tim_H, g_motor_tim_L, g_motor_tim_scale, g_motor_duty;
+   4          /*******************************
+   5          函数名：DC_Motor_init
+   6          函数功能：DC_Motor初始化
+   7          函数形参：u8 tim_H, u8 tim_L, u8 tim_scale, u8 duty
+   8          函数返回值：void 
+   9          备注：计数器的记一次的时间（tim_H,tim_L决定） * tim_sclae = 周期，duty占空比，取值0~tim_scale
+  10                    占用计时器0   P1^0端口
+  11          *******************************/
+  12          void DC_Motor_init(unsigned char tim_H, unsigned char tim_L, unsigned char tim_scale, unsigned char duty) 
+             - //11.0592MHz
+  13          {
+  14   1              g_motor_tim_H   = tim_H;
+  15   1              g_motor_tim_L   = tim_L;
+  16   1              g_motor_tim_scale = tim_scale;
+  17   1              g_motor_duty = duty;
+  18   1      
+  19   1              #if USE_DC_MOTOR_TIMER2
+                      RCLK = 0;
+                      TCLK = 0;
+                      CP_RL2 = 0;  // 计数器2工作在16位重装载模式
+                      TR2 = 1;  // 计数器2工作
+                      RCAP2H = TH2 = tim_H;  // 0xff 
+                      RCAP2L = TL2 = tim_L;  // 0xf6 -> 0.01ms
+                      EA = 1;
+                      ET2 = 1;  // 打开中断
+                      #endif
+  29   1      }
+  30          
+  31          /*******************************
+  32          函数名：DC_Motor_duty
+  33          函数功能：DC_Motor改变占空比
+  34          函数形参：u8 duty
+  35          函数返回值：void 
+  36          备注：
+  37          *******************************/
+  38          void DC_Motor_duty(unsigned char duty)
+  39          {
+  40   1              g_motor_duty = duty;
+  41   1      }
+  42          
+  43          /*******************************
+  44          函数名：DC_Motor_interrupt
+  45          函数功能：DC_Motor中断服务函数
+  46          函数形参：void
+  47          函数返回值：void 
+  48          备注：定时器0的中断
+  49          *******************************/
+  50          #if     USE_DC_MOTOR_TIMER2_INT
+              void DC_Motor_interrupt() interrupt 5
+              {
+                      static unsigned int cnt=0;
+C51 COMPILER V9.02   MOTOR                                                                 12/13/2022 21:42:01 PAGE 2   
+
+                      
+                      cnt++;
+                      if (cnt >= g_motor_tim_scale) cnt = 0;  // 周期到了
+                      if (cnt <= g_motor_duty) DC_Motor = 1;
+                      else DC_Motor = 0;
+              }
+              #endif
+  61          
+  62          /*******************************
+  63          函数名：DC_Motor_Run
+  64          函数功能：控制直流电机速度，按键扫描，1：加速，2：减速
+  65          函数形参：u8 tim_scale
+  66          函数返回值：void 
+  67          备注：motor为P1^0，占空比阈值，最小值等于0，最大值等于tim_scale
+  68          *******************************/
+  69          void DC_Motor_Run(unsigned char tim_scale)
+  70          {
+  71   1              unsigned char key=-1;
+  72   1              static char duty=0;
+  73   1      
+  74   1              key = matrix_key_scan();
+  75   1              if (key==1)
+  76   1              {
+  77   2                      duty += 10;
+  78   2                      if (duty>=tim_scale) duty = tim_scale;
+  79   2              } else if (key==2)
+  80   1              {
+  81   2                      duty -= 10;
+  82   2                      if (duty<=0) duty = 0;
+  83   2              }       
+  84   1              DC_Motor_duty(duty);
+  85   1              delay_ms(1);
+  86   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     85    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      5       5
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
